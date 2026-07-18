@@ -139,14 +139,12 @@
 <script setup lang="ts">
 import {ref,computed,onMounted,onUnmounted,watch,nextTick,inject} from 'vue'
 import {bookshelfManager} from '@/core/bookshelf'
-import {useLicense} from '@/composables/useLicense'
 
 const props=defineProps<{visible:boolean}>()
 const emit=defineEmits<{close:[];open:[book:any]}>()
 
 // 注入useStats实例和plugin
 const statsComposable=inject<any>('stats')
-const {can,showUpgrade}=useLicense({})
 
 const popupRef=ref<HTMLElement>(),showDetail=ref(false)
 const totalBooks=ref(0),finishedCount=ref(0),annotationCount=ref(0)
@@ -263,7 +261,7 @@ const getDays=(m:number)=>{
 
 const switchView=()=>calView.value=calView.value==='year'?'month':'year'
 
-const handleViewDetail=()=>{if(!can.value('reader-stats'))return showUpgrade('阅读统计');showDetail.value=true}
+const handleViewDetail=()=>{showDetail.value=true}
 
 // 统一刷新方法
 const refresh=()=>now.value=Date.now()

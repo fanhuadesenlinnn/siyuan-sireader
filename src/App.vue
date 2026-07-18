@@ -62,14 +62,8 @@ const SettingsDock = defineComponent({
       props['onUpdate:modelValue']?.(value)
     }
     const handleReadOnline = async (book: any) => (await import('@/utils/bookOpen')).openOrActivateBook(plugin, book, model.value)
-    const openLicense = () => {
-      activeTab.value = 'appearance'
-      setTimeout(() => (window as any)._openLicenseContent?.(), 50)
-    }
     watch(canShowToc, show => !show && activeTab.value === 'toc' && (activeTab.value = 'bookshelf'), { immediate: true })
     watch(tabs, list => list.length && !list.some((t: any) => t.id === activeTab.value) && (activeTab.value = list[0].id), { immediate: true })
-    onMounted(() => { ;(window as any)._openLicense = openLicense })
-    onUnmounted(() => { if ((window as any)._openLicense === openLicense) delete (window as any)._openLicense })
     return () => h(
       DockShell,
       {
@@ -117,11 +111,9 @@ const DOCK_ID = `${plugin.name}${DOCK_TYPE}`
 const { openWereadTab, topBar: wereadTopBar } = registerWeread(plugin)
 watch(() => settings.value.showWereadTopBar, show => wereadTopBar.style.display = show === false ? 'none' : '', { immediate: true })
 
-// 打开设置并展开授权
-const openSetting = (openLicense = false) => {
+const openSetting = () => {
   const btn = document.querySelector<HTMLElement>(`.dock__item[data-type="${DOCK_ID}"]`)
   if (!btn?.classList.contains('dock__item--active')) btn?.click()
-  if (openLicense) setTimeout(() => (window as any)._openLicense?.(), 100)
 }
 
 // ===== 阅读器核心 =====
@@ -400,4 +392,3 @@ onMounted(async () => {
   pointer-events: none;
 }
 </style>
-

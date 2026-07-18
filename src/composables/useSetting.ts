@@ -63,7 +63,7 @@ export const NOTE_TARGET_OPTIONS = ['clipboard', 'current', 'notebook', 'documen
 export const NOTE_MODE_OPTIONS = ['insertBlock', 'prependBlock', 'appendBlock', 'updateBlock', 'prependDoc', 'appendDoc'] as const
 export const NOTE_MODE_LABELS: Record<typeof NOTE_MODE_OPTIONS[number], string> = { insertBlock: 'noteInsertModeCursor', prependBlock: 'noteInsertModeBefore', appendBlock: 'noteInsertModeAfter', updateBlock: 'noteInsertModeReplace', prependDoc: 'noteInsertModeDocTop', appendDoc: 'noteInsertModeDocBottom' }
 export const SETTING_SECTION_ICONS = {
-  root: { preview: '#lucide-eye', license: '#lucide-square-star', interface: '#lucide-monitor-cog', theme: '#lucide-palette', dictionary: '#lucide-languages', other: '#lucide-notebook-tabs', tts: '#lucide-volume-2' },
+  root: { preview: '#lucide-eye', interface: '#lucide-monitor-cog', theme: '#lucide-palette', dictionary: '#lucide-languages', other: '#lucide-notebook-tabs', tts: '#lucide-volume-2' },
   sub: { navItems: '#lucide-list-tree', customFont: '#lucide-book-text' },
   appearance: { textSettings: '#lucide-book-open-text', paragraphSettings: '#lucide-scroll-text', layoutSettings: '#lucide-layout-template', visualSettings: '#lucide-sliders-horizontal' },
   dictionary: { offlineDict: '#lucide-hard-drive', onlineDict: '#lucide-wifi' },
@@ -151,17 +151,6 @@ export const setCustomBackgroundFromInput = async (settings: ReaderSettings, e: 
   try { await setCustomBackgroundImage(settings, file); return true }
   finally { input.value = '' }
 }
-export const licenseIcon = (type?: string) => ({ lifetime: '#iconLicenseLifetime', annual: '#iconLicenseAnnual', monthly: '#iconLicenseMonthly', trial: '#iconLicenseTrial' } as Record<string, string>)[type || ''] || '#iconLicenseTrial'
-export const licenseTypeText = (type: string | undefined, i18n: any) => i18n?.[type === 'lifetime' ? 'lifetimeVersion' : type === 'annual' ? 'annualVersion' : type === 'monthly' ? 'monthlyVersion' : 'trialVersion'] || type || ''
-export const licenseAvatar = (avatar = '') => avatar || ((globalThis as any)?.window?.siyuan?.user?.userAvatarURL || '')
-export const licenseLines = (license: any, i18n: any) => license ? [
-  `${i18n?.activated || '已激活'} · ${licenseTypeText(license.type, i18n)}`,
-  license.userId && `ID ${license.userId}`,
-  license.activatedAt && `${i18n?.activatedAt || '激活于'} ${new Date(license.activatedAt).toLocaleDateString()}`,
-  license.expiresAt && license.expiresAt !== 0 && `${i18n?.expiresAt || '到期'} ${new Date(license.expiresAt).toLocaleDateString()}`
-].filter(Boolean) : [i18n?.notActivated || '未激活']
-export const getLicenseMedia = (license: any, avatar: string, i18n: any) => ({ avatar: licenseAvatar(avatar), icon: licenseIcon(license?.type), lines: licenseLines(license, i18n) })
-
 // ===== 字体 =====
 let cachedFonts: FontFileInfo[] | null = null, fontScanTask: Promise<FontFileInfo[]> | null = null, loadedFontKey = '';
 export const scanCustomFonts = async (force = false): Promise<FontFileInfo[]> => {

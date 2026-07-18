@@ -331,7 +331,7 @@ const mountConverted = async (file: File, title: string) => {
 }
 
 const convertCurrentPage = async (afterTurn = false) => {
-  const { createReadableWebpageTxtFile } = await import('@private-sources')
+  const { createReadableWebpageTxtFile } = await import('@/utils/readableWebpage')
   const snapshot = await getSnapshot()
   const currentUrl = snapshot?.url || currentFrameUrl()
   const result = await createReadableWebpageTxtFile(currentUrl, snapshot || '')

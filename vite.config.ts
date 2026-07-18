@@ -1,5 +1,4 @@
 /* eslint-disable node/prefer-global/process */
-import { existsSync } from "node:fs"
 import { resolve } from "node:path"
 import vue from "@vitejs/plugin-vue"
 import fg from "fast-glob"
@@ -13,19 +12,6 @@ import { viteStaticCopy } from "vite-plugin-static-copy"
 import zipPack from "vite-plugin-zip-pack"
 
 const pluginInfo = require("./plugin.json")
-const PRIVATE_SOURCES_ID = "@private-sources"
-const VIRTUAL_PRIVATE_SOURCES_ID = "\0@private-sources"
-const PUBLIC_PRIVATE_SOURCES_STUB = `
-export const registerPrivateSources = () => {}
-export const createPrivateSearchAccess = () => ({
-  isSourceVisible: source => !source?.private,
-  handleManagePanelClick: () => {},
-})
-export const callWereadAgentDirect = async () => { throw new Error('微信读书私密模块未安装') }
-export const createWereadOnlineBookInfo = () => { throw new Error('微信读书私密模块未安装') }
-export const getWereadReadUrl = bookId => bookId ? 'https://weread.qq.com/web/reader/' + encodeURIComponent(bookId) : ''
-export const testWereadAgentKey = async () => { throw new Error('微信读书私密模块未安装') }
-`
 
 export default defineConfig(({
   mode,
@@ -46,8 +32,6 @@ export default defineConfig(({
   const isWatch = args.watch || args.w || false
   const useLiveReload = isWatch && env.VITE_ENABLE_LIVERELOAD === 'true'
   const distDir = isWatch ? devDistDir : "./dist"
-  const privateSources = resolve(__dirname, "private-sources/src/privateSources.ts")
-
   return {
     resolve: {
       alias: {
@@ -56,17 +40,6 @@ export default defineConfig(({
     },
 
     plugins: [
-      {
-        name: "private-sources",
-        resolveId(id) {
-          if (id !== PRIVATE_SOURCES_ID) return null
-          return existsSync(privateSources) ? privateSources : VIRTUAL_PRIVATE_SOURCES_ID
-        },
-        load(id) {
-          if (id !== VIRTUAL_PRIVATE_SOURCES_ID) return null
-          return PUBLIC_PRIVATE_SOURCES_STUB
-        },
-      },
       vue(),
       viteStaticCopy({
         targets: [

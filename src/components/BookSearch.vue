@@ -53,7 +53,7 @@
 
     <template #overlay>
     <Transition name="fade">
-        <div v-if="showManagePanel" class="sr-manage-panel" @click.stop="handleManagePanelClick">
+        <div v-if="showManagePanel" class="sr-manage-panel" @click.stop>
           <div class="sr-manage-head">
             <div>
               <div class="sr-manage-title">{{ TEXT.manageTitle }}</div>
@@ -169,11 +169,9 @@ import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { showMessage } from 'siyuan'
 import { bookshelfManager } from '@/core/bookshelf'
 import { addOnlineBookToShelf, importRemoteBook } from '@/composables/useBookImport'
-import { useLicense } from '@/composables/useLicense'
 import { httpSourceManager, type HttpSourceConfig } from '@/utils/HttpSources'
 import { loadWereadHttpBookDetail, toWereadHttpBook } from '@/weread/agent'
 import { createWereadContextFromSource } from '@/weread/context'
-import { createPrivateSearchAccess } from '@private-sources'
 import DockShell from './ui/DockShell.vue'
 
 const TEXT = { searchPlaceholder: '输入书名搜索', allSources: '全部来源', manageTitle: '来源管理', manageDesc: '统一管理内置源、自定义源和请求前缀。', edit: '编辑', remove: '删除', editSource: '编辑来源', addSource: '新增自定义来源', domains: '镜像列表', domainsPlaceholder: '每行一个域名', currentDomain: '当前镜像', account: '账号', accountPlaceholder: '邮箱', password: '密码', passwordPlaceholder: '用于正常登录获取搜索结果', siteUrl: '站点地址', searchUrl: '搜索地址', bookUrlPrefix: '书籍地址前缀', itemSelector: '结果项选择器', titleSelector: '标题选择器', authorSelector: '作者选择器', linkSelector: '链接选择器', coverSelector: '封面选择器', introSelector: '简介选择器', requestPrefix: '请求前缀 / 代理', requestPrefixPlaceholder: '留空或填写代理前缀', name: '名称', extensions: '扩展名过滤', extensionsPlaceholder: 'epub,pdf,mobi,azw3', siteUrlPlaceholder: 'https://example.com', searchUrlPlaceholder: 'https://example.com/search?q={query}', bookUrlPrefixPlaceholder: '留空自动推断', cancel: '取消', save: '保存', noResults: '未找到书籍', searching: '搜索中...', inShelf: '已在书架', openLink: '打开链接', readOnline: '在线阅读', detail: '书籍详情', saveError: '来源名称不能为空', customError: '自定义源至少需要搜索地址、结果项、标题、链接选择器', saveSuccess: '来源已保存', addError: '添加失败', sourceDescCustom: '自定义选择器来源', sourceDescAnna: '镜像 / 扩展名 / 请求前缀', sourceDescBuiltin: '内置来源' } as const
@@ -185,12 +183,10 @@ const selectorFields = [['itemSelector', 'item', TEXT.itemSelector, '.book-item'
 const builtinTypeSet = new Set(['gutenberg', 'standardebooks'])
 const props = defineProps<{ i18n: any }>()
 const i18n = computed(() => props.i18n || {})
-const { can, showUpgrade } = useLicense(i18n.value)
 const keyword = ref(''), selectedSource = ref(''), showSourceMenu = ref(false), showManagePanel = ref(false), searching = ref(false), results = ref<any[]>([]), allSources = ref<HttpSourceConfig[]>([]), detailBook = ref<any>(null), editingSource = ref<HttpSourceConfig | null>(null), shelfBooks = ref(new Set<string>()), failedCovers = new Set<string>(), importing = ref<Record<string, string>>({}), form = reactive({ ...FORM_DEFAULTS })
 const enabledSources = computed(() => allSources.value.filter(source => source.enabled))
-const privateSearchAccess = createPrivateSearchAccess({ reload: () => loadHttpSources() })
-const visibleSources = computed(() => allSources.value.filter(source => privateSearchAccess.isSourceVisible(source)))
-const visibleEnabledSources = computed(() => enabledSources.value.filter(source => privateSearchAccess.isSourceVisible(source)))
+const visibleSources = computed(() => allSources.value)
+const visibleEnabledSources = computed(() => enabledSources.value)
 const detailTags = computed(() => detailBook.value?.kind?.split(/[，,\/]/).map((item: string) => item.trim()).filter(Boolean) || [])
 const formNeedsDomains = computed(() => form.type === 'anna' || !!editingSource.value?.domains?.length)
 const formNeedsAuth = computed(() => !!editingSource.value?.requiresAuth || !!editingSource.value?.auth)
@@ -263,7 +259,6 @@ const openWebSource = (source: HttpSourceConfig) => {
   window.dispatchEvent(new CustomEvent('sireader:open-online-reader', { detail: { title: source.name || TEXT.readOnline, url: `${base}/online_search` } }))
   closeOverlays()
 }
-const handleManagePanelClick = (event: MouseEvent) => privateSearchAccess.handleManagePanelClick(event)
 const checkInShelf = async (book: any) => {
   await Promise.all([
     ...linkShelfKeys(book).map(key => bookshelfManager.hasBook(key).then(has => has && shelfBooks.value.add(key))),
@@ -316,7 +311,6 @@ const removeCustomSource = async (id: string) => {
 }
 const search = async () => {
   if (!keyword.value.trim()) return
-  if (!can.value('book-search')) return showUpgrade('在线搜书')
   searching.value = true
   results.value = []
   try {

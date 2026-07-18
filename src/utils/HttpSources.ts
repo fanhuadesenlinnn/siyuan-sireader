@@ -1,6 +1,5 @@
 import { bookshelfManager } from '@/core/bookshelf'
 import type { RemoteBookInfo, RemoteDownloadRequest, OnlineBookImportInfo } from '@/composables/useBookImport'
-import { registerPrivateSources } from '@private-sources'
 import { registerWereadAgentSources } from '@/weread/agent'
 
 type HttpSourceType = 'anna' | 'gutenberg' | 'standardebooks' | 'custom' | (string & {})
@@ -82,15 +81,6 @@ const toForwardProxyHeaders = (headers: Array<{ name: string; value: string }> =
     .map(header => ({ [header.name]: header.value }))
 
 const DEFAULT_SOURCES: HttpSourceConfig[] = [
-  {
-    id: 'anna',
-    name: 'Anna Archive',
-    type: 'anna',
-    enabled: false,
-    domains: ['https://annas-archive.gl', 'https://annas-archive.pk', 'https://annas-archive.gd', 'https://annas-archive.se', 'https://annas-archive.li', 'https://annas-archive.org'],
-    currentDomain: 'https://annas-archive.gl',
-    filters: { extensions: [] },
-  },
   {
     id: 'gutenberg',
     name: 'Project Gutenberg',
@@ -632,5 +622,4 @@ export class HttpSourceManager {
 
 export const httpSourceManager = new HttpSourceManager()
 registerWereadAgentSources(httpSourceManager)
-registerPrivateSources(httpSourceManager)
 export type { HttpSourceConfig, HttpBook, HttpSourceSelectors, HttpSourceType, HttpSourceExtension, HttpSourceHelpers }

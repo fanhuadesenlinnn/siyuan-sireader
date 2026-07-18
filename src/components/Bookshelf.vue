@@ -168,7 +168,6 @@ import DockShell from './ui/DockShell.vue'
 import { isMobile } from '@/utils/mobile'
 import { searchDocs } from '@/composables/useSetting'
 import { useBookImport } from '@/composables/useBookImport'
-import { useLicense } from '@/composables/useLicense'
 import { importPdfAnnotationsForBook } from '@/core/pdfAnnotationImport'
 
 type ImportMode = 'file' | 'link' | 'cloud'
@@ -176,7 +175,6 @@ type GroupType = 'folder' | 'smart'
 
 const props = defineProps<{ i18n?: any; coverSize?: number; hiddenItems?: string[] }>()
 const emit = defineEmits<{ read: [book: Book] }>()
-const { can, showUpgrade } = useLicense(props.i18n || {})
 const MENU_ICONS = { status: { unread: 'iconUncheck', reading: 'iconEye', finished: 'iconCheck' } }
 
 const books = ref<Book[]>([]), groups = ref<GroupConfig[]>([]), allTags = ref<Array<{ tag: string; count: number }>>([])
@@ -362,7 +360,6 @@ const confirmDeleteText = computed(() => confirmDelete.value?.type === 'batch'
 
 const createGroupDraft = (type: GroupType): GroupConfig => ({ id: `group_${Date.now()}`, name: '', icon: type === 'smart' ? '⚡' : '📁', order: groups.value.length, type, rules: createDefaultGroupRules() })
 const startEditGroup = (g?: GroupConfig, type: GroupType = 'folder') => {
-  if (!g && !can.value(type === 'smart' ? 'smart-group' : 'folder-group')) return showUpgrade(type === 'smart' ? '智能分组' : '分组')
   editingGroup.value = g ? { ...g, rules: g.rules || createDefaultGroupRules() } : createGroupDraft(type)
   modalMode.value = 'manage'
 }
@@ -472,7 +469,7 @@ const confirmImport = async (mode: 'file' | 'link') => {
   if (!res.failed) closePopups()
 }
 const toggleImportItem = (item: { selected: boolean; error: string; loading: boolean }) => { if (!item.error && !item.loading) item.selected = !item.selected }
-const openBookPanel = async (mode: 'detail' | 'edit', book: Book) => { closeMenu(); panelBook.value = await bookshelfManager.getBook(book.url) || book; if (mode === 'edit') { if (!can.value('book-edit')) return showUpgrade('书籍编辑'); editingBook.value = panelBook.value.url; resetEditForm(); assignEditForm(panelBook.value) } modalMode.value = mode }
+const openBookPanel = async (mode: 'detail' | 'edit', book: Book) => { closeMenu(); panelBook.value = await bookshelfManager.getBook(book.url) || book; if (mode === 'edit') { editingBook.value = panelBook.value.url; resetEditForm(); assignEditForm(panelBook.value) } modalMode.value = mode }
 const importBookAnnotations = async (book: Book) => {
   if (String(book.format || '').toLowerCase() !== 'pdf') return showMessage('批注导入暂仅支持 PDF', 2000, 'error')
   try {
@@ -494,7 +491,6 @@ const showContextMenu = (book: Book, e: MouseEvent) => {
 }
 
 const batchOp = async (op: 'rate' | 'status' | 'remove' | 'tags' | 'groups', value?: number | BookStatus) => {
-  if (!can.value('batch-operation')) return showUpgrade('批量操作')
   const urls = selectedBookUrls.value
   if (!urls.length) return
   const done = async (res: any, action: string) => { batchMode.value = null; await refresh(); allTags.value = await bookshelfManager.getAllTags(); showResult(res.success, res.failed, `${action} ${res.success} 本`); if (!res.failed) exitSelection() }
