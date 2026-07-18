@@ -5,7 +5,7 @@
 ## 开发流程
 
 1. Fork 仓库并从 `main` 创建分支。
-2. 使用 Node.js 20+ 和 `package.json` 声明的 pnpm 版本。
+2. 使用 Node.js 22.13+ 和 `package.json` 声明的 pnpm 版本。
 3. 运行 `pnpm install --frozen-lockfile`。
 4. 完成改动，并为可独立测试的逻辑补充测试。
 5. 提交前运行以下检查：

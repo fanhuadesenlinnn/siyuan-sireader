@@ -40,7 +40,7 @@ SiReader 支持 EPUB、PDF、MOBI、AZW3、FB2、CBZ、TXT 和在线网页阅读
 
 ## 本地开发
 
-要求 Node.js 20 或更高版本，并使用仓库声明的 pnpm 版本。
+要求 Node.js 22.13 或更高版本，并使用仓库声明的 pnpm 版本。
 
 ```bash
 pnpm install --frozen-lockfile

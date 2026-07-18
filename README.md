@@ -40,7 +40,7 @@ Open Marketplace → Plugins in SiYuan, then search for `SiReader`.
 
 ## Development
 
-Node.js 20 or newer is required. Use the pnpm version declared by the repository.
+Node.js 22.13 or newer is required. Use the pnpm version declared by the repository.
 
 ```bash
 pnpm install --frozen-lockfile
