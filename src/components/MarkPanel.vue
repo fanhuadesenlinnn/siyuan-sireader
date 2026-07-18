@@ -100,8 +100,6 @@ const props = defineProps<{
   quickMarkMode?: boolean
   quickMarkColor?: HighlightColor
   quickMarkStyle?: 'highlight' | 'underline' | 'outline' | 'dotted' | 'dashed' | 'double' | 'squiggly'
-  can?: any
-  showUpgrade?: any
 }>()
 
 const emit = defineEmits<{
@@ -252,7 +250,7 @@ const openSelectionPanel = async (selection: MarkSelection, anchor: SelectionAnc
   const sameSelection = state.selection && getSelectionKey(state.selection) === getSelectionKey(selection)
   Object.assign(state, { selection, x: anchor.x, y: anchor.y, panelY: anchor.panelY || 0 })
   if (props.quickMarkMode) return await handleCopy(props.quickMarkColor, props.quickMarkStyle)
-  if ((window as any).__sireader_settings?.translation?.autoOnSelection && state.panel !== 'translate' && (!props.can || props.can('translate'))) return setPanelState('translate', { currentMark: null, isEditing: false, text: selection.text, note: '', tags: '' })
+  if ((window as any).__sireader_settings?.translation?.autoOnSelection && state.panel !== 'translate') return setPanelState('translate', { currentMark: null, isEditing: false, text: selection.text, note: '', tags: '' })
   if (sameSelection && state.showMenu && !state.showPanel && !state.showSendMenu) return
   closePanel()
   Object.assign(state, { currentMark: null, isEditing: false, text: selection.text, note: '', tags: '', showMenu: true, showSendMenu: false })
@@ -377,7 +375,6 @@ const searchSendDocs = async () => {
 }
 const handleSendToDoc = async (docId: string) => {
   if (readOnly.value) return
-  if (props.can && !props.can('quick-send')) return props.showUpgrade?.('快捷发送')
   if (!docId) return
   const mark = state.selection ? await addSelectionMark(state.selection.text, props.quickMarkColor || 'blue', props.quickMarkStyle || 'highlight') : null
   if (mark) await (await import('@/utils/copy')).sendMarkToDoc(mark, docId, { bookUrl: getBookUrl(), isPdf: isPdf.value, showMsg: (msg: string, type?: string) => showMessage(msg, type === 'error' ? 2000 : 1500, type as any), i18n: props.i18n, marks: props.manager })
@@ -390,7 +387,6 @@ const handleCopyText = () => {
 }
 const handleSpeak = () => {
   if (!state.selection || !props.ttsController) return
-  if (props.can && !props.can('tts')) return props.showUpgrade?.('TTS朗读')
   props.ttsController.speak(state.selection.text, props.ttsConfig)
   closeMenus()
 }
@@ -401,7 +397,6 @@ const handleDict = async () => {
   closeMenus()
 }
 const handleTranslate = () => {
-  if (props.can && !props.can('translate')) return props.showUpgrade?.('翻译')
   setPanelState('translate')
 }
 const handleEdit = () => {

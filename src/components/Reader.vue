@@ -47,7 +47,7 @@
       </div>
     </div>
   </div>
-  <MarkPanel v-if="!isEmbedPdfMode" ref="markPanelRef" :root="containerRef" :book-url="getBookUrl()" :manager="markManager" :reader="reader" :current-view="currentView" :read-only="false" :i18n="i18n" :tts-controller="ttsController" :tts-config="currentSettings?.tts" :quick-mark-mode="quickMarkMode" :quick-mark-color="COLORS[quickMarkColor].color" :quick-mark-style="quickMarkStyle" :can="can" :show-upgrade="showUpgrade" @copy="(text,sel)=>handleCopy({text,cfi:sel?.cfi,page:sel?.page,section:sel?.section,rects:sel?.rects,textOffset:sel?.textOffset})" @dict="handleOpenDict" @copy-mark-only="handleCopyToClipboard" />
+  <MarkPanel v-if="!isEmbedPdfMode" ref="markPanelRef" :root="containerRef" :book-url="getBookUrl()" :manager="markManager" :reader="reader" :current-view="currentView" :read-only="false" :i18n="i18n" :tts-controller="ttsController" :tts-config="currentSettings?.tts" :quick-mark-mode="quickMarkMode" :quick-mark-color="COLORS[quickMarkColor].color" :quick-mark-style="quickMarkStyle" @copy="(text,sel)=>handleCopy({text,cfi:sel?.cfi,page:sel?.page,section:sel?.section,rects:sel?.rects,textOffset:sel?.textOffset})" @dict="handleOpenDict" @copy-mark-only="handleCopyToClipboard" />
 </template>
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
@@ -73,10 +73,8 @@ import { taskToPromise } from '@/utils/embedPdfActions'
 import { isUserEmbedPdfAnnotation } from '@/core/dataMigration'
 import { createKeyboardHandler, setupEpubKeyboard, shouldHandleReaderKeydown } from '@/utils/keyboard'
 import { getTTSController } from '@/services/TTSPlayer'
-import { useLicense } from '@/composables/useLicense'
 const props = defineProps<{ file?: File; plugin: Plugin; settings?: ReaderSettings; url?: string; blockId?: string; bookInfo?: any; onReaderReady?: (r: FoliateReader) => void; i18n?: any }>()
 const i18n = computed(() => props.i18n || {})
-const { can, showUpgrade } = useLicense(i18n.value)
 const currentSettings = ref(props.settings)
 const getSettings = () => currentSettings.value || props.settings
 const openingSplashKey = props.bookInfo?.url || props.url || props.file?.name || ''
@@ -164,7 +162,7 @@ const ttsController = getTTSController()
 const ttsEnabled = computed(() => currentSettings.value?.tts?.enabled || false)
 const ttsPlaying = computed(() => ttsController.isActive.value && !ttsController.paused.value)
 const clearReadingSelection=()=>{try{reader?.getView?.()?.renderer?.getContents?.()?.forEach(({doc}:any)=>doc.defaultView?.getSelection()?.removeAllRanges());document.getSelection()?.removeAllRanges()}catch{}}
-const toggleTTS = () => {if (!can.value('tts')) return showUpgrade('TTS朗读'); clearReadingSelection(); ttsController.toggle(() => reader, currentSettings.value?.tts, undefined, getBookName())}
+const toggleTTS = () => {clearReadingSelection(); ttsController.toggle(() => reader, currentSettings.value?.tts, undefined, getBookName())}
 const syncTTS = async () => ttsController.sync(currentSettings.value?.tts?.enabled || false)
 const marks=computed(()=>markManager.value)
 const isEmbedPdfMode=computed(()=>currentView.value?.engine==='embedpdf')
@@ -324,7 +322,7 @@ const handlePrev=()=>flipPage('prev')
 const handleNext=()=>flipPage('next')
 const searchInputRef=ref<HTMLInputElement>()
 const toggleSearch=()=>{showSearch.value=!showSearch.value;showSearch.value&&(showQuickMark.value=quickMarkMode.value=false,setTimeout(()=>searchInputRef.value?.focus(),100))}
-const toggleQuickMark=()=>{if(!can.value('quick-mark'))return showUpgrade('快速标注');showQuickMark.value=!showQuickMark.value;showQuickMark.value&&(showSearch.value=false);quickMarkMode.value=showQuickMark.value}
+const toggleQuickMark=()=>{showQuickMark.value=!showQuickMark.value;showQuickMark.value&&(showSearch.value=false);quickMarkMode.value=showQuickMark.value}
 const syncSearchNav=(r:any)=>{if(r)searchCurrentIndex.value=reader.searchManager.getCurrentIndex()}
 const handleSearch=async()=>{
   if(!searchQuery.value.trim())return

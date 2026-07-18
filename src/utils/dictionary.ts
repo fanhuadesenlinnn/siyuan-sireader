@@ -2,7 +2,6 @@ import type { Plugin } from 'siyuan'
 import { getFile, putFile, removeFile } from '@/api'
 
 const BASE_URL='https://dictionary.cambridge.org'
-const MXNZP_ID='guuhjloujpkfenn1',MXNZP_SECRET='izYrfPlqfRMxrXHUCf5vEbD4WSxnjSow'
 const DICT_PUBLIC_ROOT='/public/siyuan-sireader/dictionaries'
 const DICT_DATA_ROOT='/data/public/siyuan-sireader/dictionaries'
 const CONFIG_PATH=`${DICT_DATA_ROOT}/config.json`
@@ -15,12 +14,12 @@ export interface OnlineDict{id:string;name:string;icon:string;enabled:boolean;ur
 export interface DictConfig{dicts:{id:string;name:string;type:string;enabled:boolean;files:any}[];online?:{id:string;enabled:boolean}[]}
 export interface DictCardData{word:string;phonetic?:string;phonetics?:{text:string;audio?:string}[];badges?:{text:string;gradient:boolean}[];meanings?:{pos:string;text:string}[];defs?:string[];examples?:{en:string;zh:string}[];extras?:{label:string;text:string}[];meta?:string}
 
-const DICT_NAMES:Record<string,string>={cambridge:'剑桥',youdao:'有道',haici:'海词',mxnzp:'汉字',ciyu:'词语',zdic:'汉典',offline:'离线',bing:'必应'}
+const DICT_NAMES:Record<string,string>={cambridge:'剑桥',youdao:'有道',haici:'海词',ciyu:'词语',zdic:'汉典',offline:'离线',bing:'必应'}
 export const getDictName=(id:string)=>DICT_NAMES[id]||id
 
 export const POS_MAP:Record<string,{name:string;color:string}>={n:{name:'n.',color:'#2563eb'},noun:{name:'n.',color:'#2563eb'},v:{name:'v.',color:'#059669'},verb:{name:'v.',color:'#059669'},vt:{name:'vt.',color:'#047857'},vi:{name:'vi.',color:'#0d9488'},a:{name:'adj.',color:'#d97706'},adj:{name:'adj.',color:'#d97706'},adjective:{name:'adj.',color:'#d97706'},ad:{name:'adv.',color:'#ea580c'},adv:{name:'adv.',color:'#ea580c'},adverb:{name:'adv.',color:'#ea580c'},prep:{name:'prep.',color:'#7c3aed'},conj:{name:'conj.',color:'#9333ea'},pron:{name:'pron.',color:'#db2777'},int:{name:'int.',color:'#dc2626'},art:{name:'art.',color:'#4f46e5'}}
 
-export const ONLINE_DICTS:OnlineDict[]=[{id:'youdao',name:'有道',icon:'https://shared.ydstatic.com/images/favicon.ico',enabled:true,desc:'英汉词典，简洁快速'},{id:'bing',name:'必应',icon:'https://cn.bing.com/favicon.ico',enabled:true,url:'https://cn.bing.com/dict/search?q={{word}}',desc:'必应词典网页版'},{id:'cambridge',name:'剑桥',icon:'#iconLanguage',enabled:true,desc:'英汉双解，支持发音'},{id:'haici',name:'海词',icon:'https://dict.cn/favicon.ico',enabled:true,desc:'英汉词典，例句丰富'},{id:'mxnzp',name:'汉字',icon:'#iconA',enabled:true,desc:'汉字字典，详细解释'},{id:'ciyu',name:'词语',icon:'#iconFont',enabled:true,desc:'汉语词语，成语典故'},{id:'zdic',name:'汉典',icon:'https://www.zdic.net/favicon.ico',enabled:true,desc:'汉字词语查询'}]
+export const ONLINE_DICTS:OnlineDict[]=[{id:'youdao',name:'有道',icon:'https://shared.ydstatic.com/images/favicon.ico',enabled:true,desc:'英汉词典，简洁快速'},{id:'bing',name:'必应',icon:'https://cn.bing.com/favicon.ico',enabled:true,url:'https://cn.bing.com/dict/search?q={{word}}',desc:'必应词典网页版'},{id:'cambridge',name:'剑桥',icon:'#iconLanguage',enabled:true,desc:'英汉双解，支持发音'},{id:'haici',name:'海词',icon:'https://dict.cn/favicon.ico',enabled:true,desc:'英汉词典，例句丰富'},{id:'ciyu',name:'词语',icon:'#iconFont',enabled:true,desc:'汉语词语，成语典故'},{id:'zdic',name:'汉典',icon:'https://www.zdic.net/favicon.ico',enabled:true,desc:'汉字词语查询'}]
 
 let plugin:Plugin|null=null,onlineDicts=[...ONLINE_DICTS]
 const publicToDataPath=(path='')=>path.startsWith('/public/')?path.replace('/public/','/data/public/'):path
@@ -354,15 +353,6 @@ export const queryHaici=(word:string)=>queryWithParse(async()=>{
   return entry&&rawDefs.length?{entry,phonetic,audio,rawDefs}:null
 },'海词词典')
 
-export async function queryMxnzp(word:string){
-  try{
-    const json=await(await fetch(`https://www.mxnzp.com/api/convert/dictionary?content=${encodeURIComponent(word)}&app_id=${MXNZP_ID}&app_secret=${MXNZP_SECRET}`)).json()
-    if(json.code!==1||!json.data?.length)return null
-    const d=json.data[0],meanings=d.explanation?d.explanation.split('\n').filter((s:string)=>s.trim()).slice(0,10).map((text:string)=>({pos:'',text})):[]
-    return{word:d.word+(d.traditional!==d.word?`（繁：${d.traditional}）`:''),phonetic:d.pinyin||'',badges:[d.radicals?{text:`部首: ${d.radicals}`,gradient:false}:null,d.strokes?{text:`笔画: ${d.strokes}画`,gradient:false}:null].filter(Boolean)as any,meanings,extras:[{label:'来源',text:'汉字词典'}]}
-  }catch{return null}
-}
-
 // 构建 extras 数组的辅助函数
 const buildExtras=(origin?:string,synonyms:string[]=[],antonyms:string[]=[],source='词语词典')=>[
   {label:'来源',text:source},
@@ -482,14 +472,12 @@ function parseOfflineDict(results:any[]):DictCardData{
 }
 
 // ===== 查询窗口 =====
-import{Dialog,showMessage}from'siyuan'
+import{Dialog}from'siyuan'
 
 let dialog:Dialog|null=null
 let state:{word:string;dictId:string;data?:DictCardData}={word:'',dictId:''}
-let selectionInfo:{cfi?:string;section?:number;page?:number;rects?:any[];text:string}|null=null
-export async function openDict(word:string,_x?:number,_y?:number,selection?:{cfi?:string;section?:number;page?:number;rects?:any[];text:string}){
+export async function openDict(word:string,_x?:number,_y?:number,_selection?:{cfi?:string;section?:number;page?:number;rects?:any[];text:string}){
   state={word,dictId:'',data:undefined}
-  selectionInfo=selection||null
   dialog?.destroy()
   
   const offlineDicts=offlineDictManager.getDicts().filter(d=>d.enabled)
@@ -514,11 +502,7 @@ async function switchDict(dictId:string){
     el.style.cssText=isActive?`${baseStyle};background:var(--b3-theme-primary);color:var(--b3-theme-on-primary);box-shadow:0 2px 4px rgba(0,0,0,0.2)`:baseStyle
   })
   
-  const license=await(await import('@/core/license')).LicenseManager.getLicense()
-  const freeDicts=['youdao','bing']
   const offlineId=dictId.startsWith('offline:')?dictId.slice(8):''
-  if(offlineId&&!(await import('@/core/license')).LicenseManager.can('dict-offline',license))return setBody('<div style="text-align:center;padding:40px 20px"><div style="font-size:16px;margin-bottom:12px">📖 离线词典</div><div style="font-size:14px;color:var(--b3-theme-on-surface-variant);margin-bottom:16px">需要体验会员</div><button class="b3-button b3-button--outline" onclick="window._openLicense && window._openLicense()" style="padding:6px 16px">去激活</button></div>')
-  if(!offlineId&&!freeDicts.includes(dictId)&&!(await import('@/core/license')).LicenseManager.can('dict-advanced',license))return setBody('<div style="text-align:center;padding:40px 20px"><div style="font-size:16px;margin-bottom:12px">📖 高级词典</div><div style="font-size:14px;color:var(--b3-theme-on-surface-variant);margin-bottom:16px">需要体验会员<br>免费版可用：有道、必应</div><button class="b3-button b3-button--outline" onclick="window._openLicense && window._openLicense()" style="padding:6px 16px">去激活</button></div>')
   
   const dict=onlineDicts.find(d=>d.id===dictId)
   if(dict?.url)return setBody(`<iframe src="${dict.url.replace('{{word}}',state.word)}" style="width:100%;height:100%;border:none"/>`)
@@ -529,7 +513,6 @@ async function switchDict(dictId:string){
     cambridge:async()=>{const r=await queryCambridge(state.word);return r?{word:r.word,phonetics:r.phonetics.map(p=>({text:`${p.region==='us'?'美':'英'} /${p.ipa}/`,audio:'https://dictionary.cambridge.org'+p.audio})),meanings:r.parts.flatMap(p=>p.means.map(m=>({pos:p.part,text:m}))),examples:r.examples,extras:[{label:'来源',text:'剑桥词典'}]}:null},
     youdao:()=>queryYoudao(state.word),
     haici:()=>queryHaici(state.word),
-    mxnzp:()=>queryMxnzp(state.word),
     ciyu:()=>queryCiyu(state.word),
     zdic:()=>queryZdic(state.word)
   }

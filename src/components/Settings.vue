@@ -2,11 +2,10 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { showMessage } from 'siyuan'
 import type { ReaderSettings, FontFileInfo } from '@/composables/useSetting'
-import { DEFAULT_NAV_ITEMS, LINK_FORMAT_PRESETS, NOTE_MODE_LABELS, NOTE_MODE_OPTIONS, NOTE_TARGET_OPTIONS, PRESET_THEMES, SectionTitle, SettingItem, SettingRows, SettingSection, UI_CONFIG, getLicenseMedia, setCustomBackgroundFromInput, settingSectionIcon, useSetting, useConfirm, useDocSearch, useNotebooks } from '@/composables/useSetting'
+import { DEFAULT_NAV_ITEMS, LINK_FORMAT_PRESETS, NOTE_MODE_LABELS, NOTE_MODE_OPTIONS, NOTE_TARGET_OPTIONS, PRESET_THEMES, SectionTitle, SettingItem, SettingRows, SettingSection, UI_CONFIG, setCustomBackgroundFromInput, settingSectionIcon, useSetting, useConfirm, useDocSearch, useNotebooks } from '@/composables/useSetting'
 import { bookshelfManager } from '@/core/bookshelf'
 import { offlineDictManager, onlineDictManager } from '@/utils/dictionary'
 import { usePlugin } from '@/main'
-import { useLicense } from '@/composables/useLicense'
 import { focusMobileEditable } from '@/utils/mobile'
 import { translators } from '@/services/translator'
 
@@ -14,9 +13,8 @@ const props = defineProps<{modelValue:ReaderSettings;i18n:any;onSave:()=>Promise
 const emit = defineEmits<{'update:modelValue':[value:ReaderSettings]}>()
 // 基础状态
 const settings = ref<ReaderSettings>(props.modelValue),
-  openGroups = ref<Record<string, boolean>>({ license: true }),
-  openSubs = ref<Record<string, boolean>>({}),
-  licenseRef = ref<HTMLElement>()
+  openGroups = ref<Record<string, boolean>>({}),
+  openSubs = ref<Record<string, boolean>>({})
 const plugin = usePlugin()
 const {customFonts,isLoadingFonts,loadCustomFonts,resetStyles:resetStylesRaw} = useSetting(plugin)
 const {interfaceItems,customThemeItems,appearanceGroups,ttsItems,ttsOptions} = UI_CONFIG
@@ -34,8 +32,7 @@ const loadTTS = async () => {
     if (!ttsVoices.value.length) showMessage(props.i18n.loadVoicesFailed||'加载失败',3000,'error')
   } catch (e:any) { showMessage(e.message||props.i18n.loadVoicesFailed||'加载失败',3000,'error') } finally { loadingTTS.value = false }
 }
-const selectVoice = (name:string,isLocal:boolean) => {
-  if (!isLocal&&!can.value('tts-online')) return showUpgrade('在线语音')
+const selectVoice = (name:string) => {
   if (!settings.value.tts) return
   settings.value.tts.voice = name
   save()
@@ -69,8 +66,6 @@ const offlineDicts = ref<any[]>([]),
   removingDict = ref<string|null>(null)
 const quickDoc = useDocSearch(), insertDoc = useDocSearch()
 const {notebooks,load:loadNotebooks} = useNotebooks()
-const {license,userAvatar,code:activationCode,loading:loadingLicense,processing,load:loadLicense,activate:activateLicense,recover:recoverLicense,clear:clearLicense,can,showUpgrade} = useLicense(props.i18n)
-const licenseMedia = computed(() => getLicenseMedia(license.value, userAvatar.value, props.i18n))
 const ttsFields = computed(() => [...ttsItems, ...ttsOptions.map(item => ({ ...item, desc: ttsI18nKey(item.key,'Desc') }))])
 const linkFormatPresetOptions = Object.keys(LINK_FORMAT_PRESETS) as (keyof typeof LINK_FORMAT_PRESETS)[]
 const linkFormatPresetValue = computed(() => Object.values(LINK_FORMAT_PRESETS).includes(settings.value.linkFormat as any) ? settings.value.linkFormat : '')
@@ -109,12 +104,12 @@ const dictSections = computed(() => [
 const voiceSections = computed(() => [
   {
     key: 'ttsFavorites', title: props.i18n.ttsFavoriteVoices||'我的语音', hint: `${props.i18n.ttsCurrentVoice||'当前'}: ${settings.value.tts?.voice||''}`,
-    rows: myVoices.value.map((v:any) => ({ key: v.name, text: v.displayName, meta: v.isLocal ? (props.i18n.localVoice || '本地') : v.locale, active: settings.value.tts?.voice === v.name, pick: () => selectVoice(v.name,v.isLocal), action: v.isLocal ? undefined : () => toggleFav(v), actionTitle: props.i18n.delete || '删除' })),
+    rows: myVoices.value.map((v:any) => ({ key: v.name, text: v.displayName, meta: v.isLocal ? (props.i18n.localVoice || '本地') : v.locale, active: settings.value.tts?.voice === v.name, pick: () => selectVoice(v.name), action: v.isLocal ? undefined : () => toggleFav(v), actionTitle: props.i18n.delete || '删除' })),
     empty: props.i18n.ttsNoFavorites||'暂无，请点击下方加载'
   },
   {
     key: 'ttsVoices', title: props.i18n.ttsVoiceList||'在线语音', hint: props.i18n.ttsOnlineHint||'点击语音名称选择，点击星号收藏',
-    rows: onlineVoices.value.map((v:any) => ({ key: v.name, text: v.displayName, meta: v.locale, active: settings.value.tts?.voice === v.name, pick: () => selectVoice(v.name,false), action: () => toggleFav(v), actionTitle: isFav(v.name)?'取消收藏':'收藏' })),
+    rows: onlineVoices.value.map((v:any) => ({ key: v.name, text: v.displayName, meta: v.locale, active: settings.value.tts?.voice === v.name, pick: () => selectVoice(v.name), action: () => toggleFav(v), actionTitle: isFav(v.name)?'取消收藏':'收藏' })),
     empty: props.i18n.ttsNoVoices||'暂无语音', loadLabel: props.i18n.ttsLoadVoices || '加载语音'
   }
 ])
@@ -174,7 +169,6 @@ const removeQuickDoc = (i:number) => {
 const selectInsertDoc = (doc:any) => { settings.value.parentDoc = doc; settings.value.notebookId = doc.notebook; save() }
 const clearInsertDoc = () => { settings.value.parentDoc = undefined; insertDoc.reset(); save() }
 const uploadBgImage = async (e:Event) => {
-  if (!can.value('reader-theme')) return showUpgrade('reader-theme')
   try { await setCustomBackgroundFromInput(settings.value, e) && save() }
   catch (e:any) { showMessage(e.message || props.i18n.uploadFailed || '上传失败', 3000, 'error') }
 }
@@ -267,8 +261,8 @@ const dictAddRows = computed(() => [{
   alwaysShowActions: true,
   actions: [
     { key: 'help', title: props.i18n.dictFormatHint || '支持 StarDict 和 dictd 格式', icon: '#iconHelp', onClick: () => openPage(dictHelpUrl) },
-    { key: 'file', title: props.i18n.addDict || '添加词典', icon: '#iconUpload', onClick: () => !uploading.value && (can.value('dict-offline') ? fileInput.value?.click() : showUpgrade('dict-offline')) },
-    { key: 'folder', title: props.i18n.importFolder || 'Import folder', icon: '#iconFolder', onClick: () => !uploading.value && (can.value('dict-offline') ? folderInput.value?.click() : showUpgrade('dict-offline')) }
+    { key: 'file', title: props.i18n.addDict || '添加词典', icon: '#iconUpload', onClick: () => !uploading.value && fileInput.value?.click() },
+    { key: 'folder', title: props.i18n.importFolder || 'Import folder', icon: '#iconFolder', onClick: () => !uploading.value && folderInput.value?.click() }
   ]
 }])
 const confirmDeleteHint = (text:string, id:string) => removingDict.value === id ? `${text} · ${props.i18n.confirmDelete || '再次点击删除'}` : text
@@ -292,21 +286,9 @@ const dictRows = (section:any) => section.items.map((d:any, idx:number) => ({
 const save = async () => (emit('update:modelValue',settings.value),await props.onSave())
 const debouncedSave = (() => {let t:any;return () => (clearTimeout(t),t=setTimeout(save,300))})()
 const setFont = (f?:FontFileInfo) => (settings.value.textSettings.fontFamily=f?'custom':'inherit',settings.value.textSettings.customFont=f?{fontFamily:f.displayName,fontFile:f.name}:{fontFamily:'',fontFile:''},f?debouncedSave():save())
-const saveTheme = () => { if (!can.value('reader-theme')) return settings.value.theme='default', showUpgrade('主题配色'); save() }
+const saveTheme = () => save()
 const openPage = (url:string) => window.open(url,'_blank')
 const dictHelpUrl = `https://github.com/mm-o/siyuan-sireader/blob/main/docs/${encodeURIComponent('离线词典使用说明.md')}`
-const openPurchasePage = () => openPage('https://pay.ldxp.cn/shop/J7MJJ8YR/lillyt')
-const openMembershipInfo = () => openPage('https://sireader.745201.xyz')
-
-// 打开授权面板
-;(window as any)._openLicenseContent = () => {
-  openGroups.value.license = true
-  setTimeout(() => {
-    licenseRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    licenseRef.value?.classList.add('license-highlight')
-    setTimeout(() => licenseRef.value?.classList.remove('license-highlight'), 2000)
-  }, 50)
-}
 
 // 生命周期
 onMounted(() => {
@@ -314,7 +296,6 @@ onMounted(() => {
   bookshelfManager.init()
   loadingDict.value = true
   offlineDictManager.init(plugin).then(refreshDicts).finally(() => loadingDict.value=false)
-  loadLicense()
 })
 onUnmounted(() => window.removeEventListener('sireaderSettingsUpdated', syncAnnotationTagPresets))
 </script>
@@ -322,57 +303,6 @@ onUnmounted(() => window.removeEventListener('sireaderSettingsUpdated', syncAnno
 <template>
   <div class="fn__flex-1 fn__flex-column bs-view bs-tree">
     <div class="fn__flex-1 bs-tree__scroll" @pointerdown.stop @click.stop @input.stop @change.stop @contextmenu.prevent.stop>
-        <ul ref="licenseRef" class="b3-list b3-list--background" data-name="license">
-          <SectionTitle :title="i18n.membership || '会员订阅'" :icon="settingSectionIcon('root', 'license')" :open="isOpen('license')" @toggle="toggleAccordion('license')">
-            <span class="fn__space"></span>
-            <span class="b3-list-item__action b3-tooltips b3-tooltips__w" :aria-label="i18n.usageTitle || '使用说明'" @click.stop="openMembershipInfo"><svg><use xlink:href="#iconHelp"></use></svg></span>
-          </SectionTitle>
-          <template v-if="isOpen('license')">
-            <SettingRows v-if="loadingLicense" :rows="[]" :loading="true" :i18n="i18n" />
-            <li v-else class="b3-list-item">
-              <span class="b3-list-item__toggle fn__hidden"></span>
-              <div class="fn__flex-1 fn__flex" style="gap:12px;align-items:flex-start">
-                <div class="fn__flex-center">
-                  <div style="position:relative;width:48px;height:48px;display:inline-block;overflow:visible">
-                    <img v-if="licenseMedia.avatar" :src="licenseMedia.avatar" loading="lazy" style="width:48px;height:48px;border-radius:50%;object-fit:cover;display:block">
-                    <svg v-else style="width:48px;height:48px"><use :xlink:href="licenseMedia.icon"></use></svg>
-                    <svg style="position:absolute;right:-2px;bottom:-2px;width:18px;height:18px"><use :xlink:href="licenseMedia.icon"></use></svg>
-                  </div>
-                </div>
-                <div class="fn__flex-1 fn__flex-column">
-                  <div class="fn__flex-1">
-                    {{ license?.userName || i18n.membership || '会员订阅' }}
-                    <div v-for="line in licenseMedia.lines" :key="line" class="ft__smaller ft__on-surface">{{ line }}</div>
-                    <input
-                      v-if="!license"
-                      v-model="activationCode"
-                      type="text"
-                      class="b3-text-field"
-                      :placeholder="i18n.enterActivationCode || '激活码'"
-                      :disabled="processing"
-                      @mousedown.stop
-                      @pointerdown.stop
-                      @touchend.stop="focusMobileEditable($event.target)"
-                    >
-                  </div>
-                </div>
-              </div>
-              <span class="fn__space"></span>
-              <div class="fn__flex" style="align-self:flex-end">
-                <template v-if="license">
-                  <span class="b3-list-item__action b3-tooltips b3-tooltips__nw" :aria-label="i18n.logout || '退出'" @click.stop="clearLicense"><svg><use xlink:href="#lucide-x"></use></svg></span>
-                  <span class="b3-list-item__action b3-tooltips b3-tooltips__nw" :aria-label="i18n.purchase || '购买'" @click.stop="openPurchasePage"><svg><use xlink:href="#lucide-shopping-bag"></use></svg></span>
-                </template>
-                <template v-else>
-                  <button class="b3-button b3-button--outline" :disabled="processing || !activationCode.trim()" @click.stop="activateLicense">{{ processing ? (i18n.processing || '处理中') : (i18n.activate || '激活') }}</button>
-                  <button class="b3-button b3-button--text" :disabled="processing" @click.stop="recoverLicense">{{ i18n.recover || '恢复' }}</button>
-                  <span class="b3-list-item__action b3-tooltips b3-tooltips__nw" :aria-label="i18n.purchase || '购买'" @click.stop="openPurchasePage"><svg><use xlink:href="#lucide-shopping-bag"></use></svg></span>
-                </template>
-              </div>
-            </li>
-          </template>
-        </ul>
-
         <SettingSection :title="i18n.interfaceLayout || '界面布局'" :icon="settingSectionIcon('root', 'interface')" :open="isOpen('interface')" @toggle="toggleAccordion('interface')">
             <SettingItem
               v-for="item in interfaceItems"
@@ -406,7 +336,7 @@ onUnmounted(() => window.removeEventListener('sireaderSettingsUpdated', syncAnno
                 :label="i18n[item.label] || item.label"
                 :hint="i18n[item.label + 'Desc'] || i18n[item.key + 'Desc'] || ''"
                 :i18n="i18n"
-                @change="value => (settings.customTheme[item.key] = value, can('reader-theme') ? save() : showUpgrade('reader-theme'))"
+                @change="value => (settings.customTheme[item.key] = value, save())"
               />
               <input ref="bgInput" type="file" accept="image/*" class="fn__none" @change="uploadBgImage">
               <SettingRows :rows="bgImageRows" :i18n="i18n" />
@@ -530,9 +460,4 @@ onUnmounted(() => window.removeEventListener('sireaderSettingsUpdated', syncAnno
 .sr-control{width:80px}
 .sr-settings-actions{display:flex;justify-content:center;align-items:center;gap:8px;padding:8px 0 0}
 .bs-tree :deep(input[type="color"].sr-control){height:24px;padding:0;border:none;background:transparent}
-.license-highlight{animation:license-pulse 2s ease}
-@keyframes license-pulse {
-  0%,100%{box-shadow:0 0 0 0 transparent}
-  50%{box-shadow:0 0 0 4px var(--b3-theme-primary-light)}
-}
 </style>

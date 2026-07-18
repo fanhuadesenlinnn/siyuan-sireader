@@ -1,4 +1,3 @@
-import { LicenseManager } from '@/core/license'
 import { inlineLinkText, sendMarkToDoc } from '@/utils/copy'
 
 export const taskToPromise = <T>(task: any) => new Promise<T>((resolve, reject) => {
@@ -48,7 +47,6 @@ export const pdfSelectionFromAnnotation = (annotation: any) => {
 }
 
 export const sendPdfMarkToDoc = async (mark: any, docId: string, ctx: any) => {
-  if (!LicenseManager.can('quick-send', await LicenseManager.getLicense())) return ctx.showMsg?.('快捷发送需要升级会员', 'info')
   return sendMarkToDoc(mark, docId, { ...ctx, isPdf: true })
 }
 
