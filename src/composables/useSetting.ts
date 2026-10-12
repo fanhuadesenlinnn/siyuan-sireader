@@ -4,7 +4,7 @@ import { showMessage, fetchSyncPost } from 'siyuan'
 import type { Plugin } from 'siyuan'
 import { readDir, searchDocs as apiSearchDocs } from '@/api'
 import { bookshelfManager } from '@/core/bookshelf'
-import { removeManagedFileTransactionally, writeManagedFile, diffLeaves } from '@/core/storage'
+import { normalizeSiyuanCloudUrl, removeManagedFileTransactionally, writeManagedFile, diffLeaves } from '@/core/storage'
 
 export type PageTurnStyle = 'push' | 'slide' | 'curl'
 export type ViewMode = 'single' | 'double' | 'scroll'
@@ -224,8 +224,8 @@ export const resetToDefaults = (s: any) => Object.assign(s, { textSettings: DEFA
 
 // ===== 链接格式化 =====
 const applyTpl=(t:string,v:Record<string,string>)=>{const ph:Record<string,string>={};let i=0;Object.entries(v).forEach(([k,val])=>{const p=`\x00${i++}\x00`;ph[p]=val;k.split('|').forEach(s=>t=t.replace(new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'),p))});return Object.entries(ph).reduce((r,[p,val])=>r.replace(new RegExp(p,'g'),val),t)}
-const encodeReadableParam=(v:string)=>{try{return encodeURIComponent(decodeURIComponent(`${v}`))}catch{return encodeURIComponent(`${v}`)}}
-export const buildSireaderLink=(bookUrl:string,cfi:string,id='')=>/^https?:\/\//i.test(cfi)?cfi:`sireader://open?url=${encodeReadableParam(bookUrl)}&cfi=${encodeReadableParam(cfi)}${id?`&id=${encodeReadableParam(id)}`:''}`
+const encodeReadableParam=(v:string)=>{let value=`${v}`;try{value=decodeURIComponent(value)}catch{}return value.replace(/%/g,'%25').replace(/&/g,'%26').replace(/=/g,'%3D').replace(/#/g,'%23').replace(/\?/g,'%3F').replace(/\+/g,'%2B')}
+export const buildSireaderLink=(bookUrl:string,cfi:string,id='')=>/^https?:\/\//i.test(cfi)?cfi:`sireader://open?url=${encodeReadableParam(normalizeSiyuanCloudUrl(bookUrl))}&cfi=${encodeReadableParam(cfi)}${id?`&id=${encodeReadableParam(id)}`:''}`
 export const formatBookLink=(u:string,t:string,a:string,c:string,f:string,x:string,fmt:string,n='',i='',id='')=>applyTpl(fmt,{'书名|{{title}}':t,'作者|{{author}}':a,'章节|{{chapter}}':c,'位置|{{location}}':f,'链接|{{url}}':buildSireaderLink(u,f,id),'文本|{{text}}':x,'笔记|{{note}}':n,'图片|{{image}}':i}).replace(/> \n/g,'').replace(/\n\n+/g,'\n')
 export const parseBookLink=(u:string):{bookUrl:string;cfi:string;id?:string}|null=>{
   try {
@@ -234,6 +234,7 @@ export const parseBookLink=(u:string):{bookUrl:string;cfi:string;id?:string}|nul
     const params=new URLSearchParams(match[1].replace(/&amp;/g,'&').replace(/\+/g,'%2B'))
     let url=params.get('url'), cfi=params.get('cfi'), id=params.get('id')||undefined
     if (!url||!cfi) return null
+    url = normalizeSiyuanCloudUrl(url)
     const e=url.indexOf('://')
     if (!id&&e!==-1) {
       const path=url.slice(e+3)

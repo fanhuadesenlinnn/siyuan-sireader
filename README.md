@@ -19,6 +19,18 @@ Professional eBook reader for EPUB/PDF/MOBI/TXT/online novels. PDFs support high
 
 ## 📝 Latest Updates
 
+## v2.5.4 (2026-10-12)
+
+### Improved
+
+- WeRead highlight exports now follow the book's chapter order while preserving the original order within each chapter.
+
+### Fixed
+
+- Fixed cloud-drive callback links retaining temporary local addresses by normalizing them to stable SiYuan paths.
+- Improved callback-link readability by preserving Chinese filenames and path structure while encoding only required URL characters.
+- Fixed [Issue #58](https://github.com/mm-o/siyuan-sireader/issues/58): text inside SiYuan tables could not be copied with Ctrl+C after opening the PDF reader.
+
 ## v2.5.3 (2026-10-09)
 
 ### Added

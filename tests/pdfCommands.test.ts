@@ -39,3 +39,4 @@ test('backlink command updates custom data through the annotation API', async ()
   await actions.updateSelectedPdfBlockId({ annotation: { id: 'a', pageIndex: 0, custom: { text: 'keep' } } }, { blockId: 'block' })
   expect(scope.updateAnnotation).toHaveBeenCalledWith(0, 'a', { custom: { text: 'keep', blockId: 'block' } })
 })
+

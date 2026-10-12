@@ -487,7 +487,11 @@ export const readDirEntries = async (path: string) => {
 }
 
 const normalizeCloudOpenPath = (path = '/') => `/${path}`.replace(/\/+/g, '/').replace(/\/$/, '') || '/'
-const encodeCloudOpenPath = (path: string) => decodeURI(encodeURI(path)).replace(/#/g, '%23').replace(/\?/g, '%3F')
+const encodeCloudOpenPath = (path: string) => {
+  let value = String(path || '')
+  try { value = decodeURI(value) } catch {}
+  return value.replace(/%(?![0-9a-f]{2})/gi, '%25').replace(/#/g, '%23').replace(/\?/g, '%3F')
+}
 const parseSiyuanCloudOpenUrl = (value: string) => {
   try {
     const url = new URL(value)
@@ -500,11 +504,20 @@ const parseSiyuanCloudOpenUrl = (value: string) => {
   }
 }
 
+const parseSiyuanCloudProtocolUrl = (value: string) => {
+  const match = String(value || '').match(/^siyuan-cloud:\/\/\/(.*)$/i)
+  if (!match) return ''
+  return `${SIYUAN_CLOUD_BASE}/p${encodeCloudOpenPath(normalizeCloudOpenPath(`/${match[1] || ''}`))}`
+}
+
 export const normalizeSiyuanCloudUrl = (value = '') => {
   const openUrl = parseSiyuanCloudOpenUrl(value)
   if (openUrl) return openUrl
+  const protocolUrl = parseSiyuanCloudProtocolUrl(value)
+  if (protocolUrl) return protocolUrl
   const i = value.indexOf(SIYUAN_CLOUD_BASE)
-  return i >= 0 ? value.slice(i) : value
+  if (i < 0) return value
+  return encodeCloudOpenPath(value.slice(i))
 }
 
 export const readFileBlob = async (path: string) => {

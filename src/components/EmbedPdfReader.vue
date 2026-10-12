@@ -85,7 +85,10 @@ let lastCaptureBlob: Blob | null = null
 let zoomSaveTimer: any = null
 let pdfAnnotationToolLocked = false
 let lastPdfAnnotationToolId = ''
+let cleanupPdfShortcutGuard: (() => void) | null = null
 const disposePdfViewer = () => {
+  cleanupPdfShortcutGuard?.()
+  cleanupPdfShortcutGuard = null
   savePendingAnnotations?.()
   savePendingAnnotations = null
   viewerToken++
@@ -103,6 +106,16 @@ const PDF_PAGE_THEME_STYLE = `
   div[style*="background: rgb(0, 0, 0)"][style*="cursor: pointer"]:hover,
   div[style*="background: #000000"][style*="cursor: pointer"]:hover{opacity:.08!important}
 `
+const installPdfShortcutGuard = () => {
+  // EmbedPDF handles shortcuts on document, including when a SiYuan table has focus.
+  const onKeydown = (event: KeyboardEvent) => {
+    if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'c') return
+    const target = event.composedPath()[0]
+    if (target instanceof Element && !rootRef.value?.contains(target) && target.closest('table,[data-type="NodeTableCell"]')) event.stopImmediatePropagation()
+  }
+  document.addEventListener('keydown', onKeydown, true)
+  return () => document.removeEventListener('keydown', onKeydown, true)
+}
 const pdfIcon = (body: string) => `<svg viewBox="0 0 24 24" style="width:16px;height:16px" fill="none" stroke="currentColor" stroke-width="2">${body}</svg>`
 const PDF_BOTTOM_ICONS = { toc: pdfIcon('<path d="M4 7h16M4 12h16M4 17h16"/>'), show: pdfIcon('<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>'), hide: pdfIcon('<path d="m2 2 20 20M10.6 10.6a2 2 0 0 0 2.8 2.8M7.4 7.4C3.8 9.2 2 12 2 12s3 7 10 7c1.6 0 3-.4 4.2-1M14.1 5.2C13.4 5.1 12.7 5 12 5 5 5 2 12 2 12c.8 1.8 2 3.3 3.5 4.4M17.7 17.7C20.5 15.9 22 12 22 12s-3-7-10-7"/>'), close: pdfIcon('<path d="M18 6 6 18M6 6l12 12"/>') }
 const getCapability = <T = any>(registry: PluginRegistry, pluginId: string): T | null =>
@@ -699,6 +712,8 @@ const handleInit = (container: EmbedPdfContainer) => {
 }
 
 const handleReady = async (registry: PluginRegistry) => {
+  cleanupPdfShortcutGuard?.()
+  cleanupPdfShortcutGuard = installPdfShortcutGuard()
   const sessionToken = viewerToken
   const recordKey = storageKey()
   const bookUrl = props.bookUrl

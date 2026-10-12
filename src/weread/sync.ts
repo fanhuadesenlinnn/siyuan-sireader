@@ -17,6 +17,11 @@ const arrayOf = (value: any, ...keys: string[]) => {
   return []
 }
 const chapterTitle = (chapters: any[], uid: unknown) => text(chapters.find(item => String(item?.chapterUid || item?.chapterId || item?.uid) === String(uid))?.title) || `章节 ${uid || ''}`
+const sortHighlights = (highlights: any[], chapters: any[]) => {
+  const order = new Map(chapters.map((item, index) => [String(item?.chapterUid || item?.chapterId || item?.uid), index]))
+  return highlights.map((item, index) => ({ item, index, order: order.get(String(item?.chapterUid || item?.chapterId || item?.uid)) ?? Infinity }))
+    .sort((a, b) => a.order - b.order || a.index - b.index).map(({ item }) => item)
+}
 const resultIds = (result: any) => (Array.isArray(result) ? result : [result]).flatMap(item => item?.doOperations || item || []).map((item: any) => item?.id).filter(Boolean)
 const coverMarkdown = (url: string, bookId: string) => {
   if (!url) return Promise.resolve('')
@@ -73,7 +78,7 @@ const render = async (book: any, data: Awaited<ReturnType<typeof load>>, templat
     const item = reviewOf(review)
     return !!item.range && !!highlight.range && String(item.range) === String(highlight.range)
   }
-  const highlightWithReviews = data.highlights.map(item => [
+  const highlightWithReviews = sortHighlights(data.highlights, data.chapters).map(item => [
     markLink(item, escapeMarkdown(item.markText || item.text || item.content)),
     ...data.reviews.filter(review => reviewMatches(review, item)).map(review => reviewLine(review)),
   ].join('\n')).join('\n') || '暂无内容'

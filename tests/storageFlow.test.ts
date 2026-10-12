@@ -9,7 +9,14 @@ vi.mock('@/utils/copy', () => ({ inlineLinkText: vi.fn(), sendMarkToDoc: vi.fn()
 
 import { usePlugin } from '@/main'
 import { putFile, removeFile, readDir } from '@/api'
-import { bookRecordKey, createStorageEngine, pluginStorageAdapter, readEmbedPdfAnnotations, readEmbedPdfProgress, deleteEmbedPdfAnnotation, recoverBackupRecords, storageEngine, cloneStorageValue, writeEmbedPdfProgress, createLatestSaver, normalizeBookTitle, readFileBlob } from '@/core/storage'
+import { bookRecordKey, createStorageEngine, pluginStorageAdapter, readEmbedPdfAnnotations, readEmbedPdfProgress, deleteEmbedPdfAnnotation, recoverBackupRecords, storageEngine, cloneStorageValue, writeEmbedPdfProgress, createLatestSaver, normalizeBookTitle, readFileBlob, normalizeSiyuanCloudUrl } from '@/core/storage'
+
+test('normalizes Siyuan Cloud protocol and temporary-origin URLs to a readable stable path', () => {
+  const path = '/plugin/private/siyuan-cloud/p/WPS 云文档/检查记录/奥本海默 (OCR).pdf'
+  expect(normalizeSiyuanCloudUrl(`https://127.0.0.1:64819${path}`)).toBe(path)
+  expect(normalizeSiyuanCloudUrl(`https://127.0.0.1:64819${encodeURI(path)}`)).toBe(path)
+  expect(normalizeSiyuanCloudUrl(`siyuan-cloud:///WPS 云文档/检查记录/奥本海默 (OCR).pdf`)).toBe(`${path}`)
+})
 import { ensurePdfRecordMigrated } from '@/core/dataMigration'
 import { ReaderDatabase } from '@/core/database'
 import { diagnosticLog } from '@/core/diagnostics'
