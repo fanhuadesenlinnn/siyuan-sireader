@@ -81,7 +81,6 @@ const offlineDicts = ref<any[]>([]),
   fontInput = ref<HTMLInputElement>(),
   uploading = ref(false),
   loadingDict = ref(true),
-  fontsLoaded = ref(false),
   removingDict = ref<string|null>(null)
 const removingFont = ref<string|null>(null)
 const removingBackground = ref<string|null>(null)
@@ -157,7 +156,7 @@ const isSubOpen = (key:string) => !!openSubs.value[key]
 const toggleAccordion = (key:string) => openGroups.value[key] = !openGroups.value[key]
 const toggleSub = async (key:string) => {
   openSubs.value[key] = !openSubs.value[key]
-  if (key === 'customFont' && !fontsLoaded.value && openSubs.value[key]) return await loadCustomFonts(), void (fontsLoaded.value = true)
+  if (key === 'customFont' && openSubs.value[key]) return await loadCustomFonts(true)
   if (['ttsFavorites','ttsVoices'].includes(key) && openSubs.value[key] && !ttsVoices.value.length) await loadTTS()
   if (key === 'ttsOffline' && openSubs.value[key]) await loadOfflineTTS()
 }
@@ -223,6 +222,7 @@ const exportFont = (name:string) => {
   exportFile(`/public/siyuan-sireader/fonts/${encodeURIComponent(name)}`, name)
 }
 const removeFont = async (font:FontFileInfo) => {
+  if (font.source === 'local' || font.name.startsWith('local:')) return
   if (removingFont.value !== font.name) return (removingFont.value = font.name)
   await deleteCustomFont(font.name)
   if (settings.value.textSettings.customFont.fontFile === font.name) { settings.value.textSettings.customFont = { fontFamily: '', fontFile: '' }; settings.value.textSettings.fontFamily = 'inherit'; await save() }
@@ -323,7 +323,8 @@ const fontGuideRows = computed(() => [{
 }])
 const fontRows = computed(() => customFonts.value.map(f => ({
   key: f.name,
-  text: f.displayName,
+  source: f.source,
+  text: f.label || f.displayName,
   hint: f.name,
   textStyle: settings.value.textSettings.customFont.fontFile === f.name ? { fontFamily: f.displayName } : undefined,
   active: settings.value.textSettings.customFont.fontFile === f.name,
@@ -331,11 +332,13 @@ const fontRows = computed(() => customFonts.value.map(f => ({
   checkbox: settings.value.textSettings.customFont.fontFile === f.name,
   onCheck: (value:boolean) => value ? pickFont(f) : setFont(),
   alwaysShowActions: true,
-  actions: [
+  actions: f.source === 'local' ? undefined : [
     { key: 'export', title: props.i18n.export || '导出', icon: '#iconDownload', onClick: () => exportFont(f.name) },
     { key: 'delete', title: removingFont.value === f.name ? (props.i18n.confirm || '确认') : (props.i18n.delete || '删除'), icon: '#lucide-trash-2', onClick: () => removeFont(f) }
   ]
 })))
+const localFontRows = computed(() => fontRows.value.filter((row:any) => row.source === 'local'))
+const managedFontRows = computed(() => fontRows.value.filter((row:any) => row.source !== 'local'))
 const dictAddRows = computed(() => [{
   key: 'add-dict',
   text: uploading.value ? (props.i18n.uploading || '上传中') : (props.i18n.addDict || '添加词典'),
@@ -503,7 +506,10 @@ onUnmounted(() => window.removeEventListener('sireaderSettingsUpdated', syncAnno
               <template v-if="isSubOpen('customFont')">
                 <input id="sr-font-input" ref="fontInput" type="file" multiple accept=".ttf,.otf,.woff,.woff2" class="fn__none" @change="handleFontUpload">
                 <SettingRows :rows="fontGuideRows" :i18n="i18n" />
-                <SettingRows :rows="fontRows" :loading="isLoadingFonts" :empty="i18n.noCustomFonts || '暂无自定义字体'" :i18n="i18n" />
+                <SectionTitle :title="i18n.localFonts || '本机字体'" icon="#lucide-monitor" :open="isSubOpen('localFonts')" @toggle="toggleSub('localFonts')" />
+                <template v-if="isSubOpen('localFonts')"><SettingRows :rows="localFontRows" :loading="isLoadingFonts" :empty="i18n.noLocalFonts || '未读取到本机字体'" :i18n="i18n" /></template>
+                <SectionTitle :title="i18n.importedFonts || '导入字体'" icon="#lucide-upload" :open="isSubOpen('importedFonts')" @toggle="toggleSub('importedFonts')" />
+                <template v-if="isSubOpen('importedFonts')"><SettingRows :rows="managedFontRows" :loading="isLoadingFonts" :empty="i18n.noCustomFonts || '暂无导入字体'" :i18n="i18n" /></template>
               </template>
             </template>
         </SettingSection>

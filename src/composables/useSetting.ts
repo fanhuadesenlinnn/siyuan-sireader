@@ -15,7 +15,7 @@ export type NoteInsertTarget = 'clipboard' | 'current' | 'notebook' | 'document'
 export type NoteInsertMode = 'insertBlock' | 'prependBlock' | 'appendBlock' | 'updateBlock' | 'prependDoc' | 'appendDoc'
 export type LinkFormatPreset = 'simple' | 'heading' | 'list' | 'quote' | 'code'
 export interface ReadTheme { name: string; color: string; bg: string; bgImg?: string }
-export interface FontFileInfo { name: string; displayName: string }
+export interface FontFileInfo { name: string; displayName: string; label?: string; source?: 'local' | 'file' }
 export interface TextSettings { fontFamily: string; fontSize: number; fontWeight: number; letterSpacing: number; overrideFont?: boolean; customFont: { fontFamily: string; fontFile: string } }
 export interface ParagraphSettings { lineHeight: number; paragraphSpacing: number; textIndent: number }
 export interface LayoutSettings { gap?: number; headerFooterMargin?: number; marginTopPx: number; marginBottomPx: number; marginLeftPx: number; marginRightPx: number; gapPercent: number; showHeader: boolean; showFooter: boolean; showRemainingTime: boolean; showProgressInfo: boolean; progressStyle: 'fraction' | 'percentage' | 'reference'; referencePageCount: number; showCurrentTime: boolean; showCurrentBatteryStatus: boolean; use24HourClock: boolean }
@@ -207,7 +207,33 @@ export const scanCustomFonts = async (force = false): Promise<FontFileInfo[]> =>
   fontScanTask = (async () => {
   const files = await readDir(CUSTOM_FONT_DIR).catch(() => null) as any
   const list = Array.isArray(files?.data) ? files.data : Array.isArray(files) ? files : []
-  return cachedFonts = list.filter((f: any) => !f.isDir && /\.(ttf|otf|woff2?)$/i.test(f.name)).map((f: any) => ({ name: f.name, displayName: f.name.replace(/\.(ttf|otf|woff2?)$/i, '') }))
+  const filesFonts = list.filter((f: any) => !f.isDir && /\.(ttf|otf|woff2?)$/i.test(f.name)).map((f: any) => ({ name: f.name, displayName: f.name.replace(/\.(ttf|otf|woff2?)$/i, ''), source: 'file' as const }))
+  const locals: FontFileInfo[] = []
+  const addLocal = (family: unknown, label?: unknown) => {
+    const name = String(family || '').trim()
+    const displayName = String(label || name).trim()
+    const existing = locals.find(font => font.name === `local:${name}`)
+    if (existing) { if (displayName && existing.label === name) existing.label = `${displayName} (${name})`; return }
+    if (!name) return
+    locals.push({ name: `local:${name}`, displayName: name, label: displayName === name ? name : `${displayName} (${name})`, source: 'local' })
+  }
+  const win = typeof window === 'undefined' ? null : window as any
+  if (typeof win?.queryLocalFonts === 'function') {
+    try { for (const f of await win.queryLocalFonts({ postscriptNames: true })) addLocal(f.family || f.fullName, f.fullName) } catch { /* use the registry fallback */ }
+  }
+  const req = win?.require || (() => { try { return win?.parent?.require } catch { return null } })()
+  if (!locals.length && typeof req === 'function') {
+    try {
+      const execFile = req('child_process').execFile
+      const query = (key: string) => new Promise<string>(resolve => execFile('reg.exe', ['query', key], { windowsHide: true }, (_error: unknown, stdout: string) => resolve(stdout || '')))
+      const fontKeys = ['HKCU\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts', 'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts', 'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows NT\\CurrentVersion\\Fonts']
+      const aliasKeys = ['HKCU\\Software\\Microsoft\\Windows NT\\CurrentVersion\\FontSubstitutes', 'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\FontSubstitutes']
+      const texts = await Promise.all([...fontKeys, ...aliasKeys].map(query))
+      for (const line of texts.slice(0, fontKeys.length).join('\n').split(/\r?\n/)) { const match = line.match(/^\s+(.+?)\s+REG_(?:SZ|EXPAND_SZ)\s+(.+)$/i); if (match) addLocal(match[1].replace(/\s*\(.*\)$/, '').trim()) }
+      for (const line of texts.slice(fontKeys.length).join('\n').split(/\r?\n/)) { const match = line.trim().match(/^(.+?)\s+REG_SZ\s+(.+)$/i); if (match) addLocal(match[2].trim(), match[1].trim()) }
+    } catch { /* local font enumeration is optional */ }
+  }
+  return cachedFonts = [...locals, ...filesFonts]
   })().finally(() => fontScanTask = null)
   return fontScanTask
 }
@@ -217,7 +243,7 @@ export const loadFonts = (fonts: FontFileInfo[]) => {
   loadedFontKey = key
   const s = document.getElementById('sr-fonts') || Object.assign(document.createElement('style'), { id: 'sr-fonts' })
   s.parentNode || document.head.appendChild(s)
-  s.textContent = fonts.map(f => `@font-face{font-family:"${f.displayName}";src:url("${customFontUrl(f.name)}");font-display:swap}`).join('')
+  s.textContent = fonts.filter(f => f.source !== 'local' && !f.name.startsWith('local:')).map(f => `@font-face{font-family:"${f.displayName}";src:url("${customFontUrl(f.name)}");font-display:swap}`).join('')
 };
 export const preloadFont = (font?: FontFileInfo) => font && document.fonts?.load(`16px "${font.displayName}"`)
 export const resetToDefaults = (s: any) => Object.assign(s, { textSettings: DEFAULT_SETTINGS.textSettings, paragraphSettings: DEFAULT_SETTINGS.paragraphSettings, layoutSettings: DEFAULT_SETTINGS.layoutSettings, visualSettings: DEFAULT_SETTINGS.visualSettings });

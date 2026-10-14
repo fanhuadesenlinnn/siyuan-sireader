@@ -204,7 +204,7 @@ const renderTocItem = (item: TOCItem, level: number, parentKey: string, bookmark
   return `${row}${children ? `<ul class="b3-list b3-list--background bs-tree-children">${children}</ul>` : ''}`
 }
 
-const renderToc = () => {
+const renderToc = (locateCurrent = true) => {
   if (props.mode !== 'toc' || !tocRef.value) return
   if (!visibleToc.value.length) {
     tocRef.value.innerHTML = isPdfMode.value
@@ -212,18 +212,18 @@ const renderToc = () => {
       : `<ul class="b3-list b3-list--background"><li class="b3-list-item"><span class="b3-list-item__toggle fn__hidden"></span><span class="b3-list-item__text ft__secondary">${props.i18n?.noToc || 'No table of contents'}</span></li></ul>`
     return
   }
-  ensureExpandedState(visibleToc.value, currentHref.value)
+  if (locateCurrent) ensureExpandedState(visibleToc.value, currentHref.value)
   const bookmarks = getBookmarkTitles()
   tocRef.value.innerHTML = visibleToc.value.map(item => `<ul class="b3-list b3-list--background">${renderTocItem(item, 0, 'root', bookmarks)}</ul>`).join('')
-  tocRef.value.querySelector('.b3-list-item--focus')?.scrollIntoView({ block: 'nearest' })
+  if (locateCurrent) tocRef.value.querySelector('.b3-list-item--focus')?.scrollIntoView({ block: 'nearest' })
 }
 
-const scheduleRender = () => {
+const scheduleRender = (locateCurrent = false) => {
   if (props.mode !== 'toc') return
   cancelAnimationFrame(renderFrame)
   renderFrame = requestAnimationFrame(() => {
     renderFrame = 0
-    renderToc()
+    renderToc(locateCurrent)
   })
 }
 
@@ -252,7 +252,7 @@ const initToc = () => {
       const href = event.detail?.tocItem?.href || ''
       if (!href || href === currentHref.value) return
       currentHref.value = href
-      scheduleRender()
+      scheduleRender(true)
     }
     view.addEventListener('relocate', relocateHandler)
   }
@@ -327,14 +327,14 @@ const toggleBookmark = async (href: string, label: string) => {
 
 const toggleTocNode = (key: string) => {
   expandedKeys.value = { ...expandedKeys.value, [key]: !expandedKeys.value[key] }
-  scheduleRender()
+  scheduleRender(false)
 }
 
 const setAllExpanded = (expand: boolean) => {
   const next = { ...expandedKeys.value }
   branchKeys.value.forEach(key => { next[key] = expand })
   expandedKeys.value = next
-  scheduleRender()
+  scheduleRender(false)
 }
 
 const onTocClick = async (event: MouseEvent) => {
@@ -407,9 +407,9 @@ watch(reverse, () => {
   expandedKeys.value = {}
   scheduleInit()
 })
-watch(keyword, () => props.mode === 'toc' && scheduleRender())
+watch(keyword, () => props.mode === 'toc' && scheduleRender(false))
 
-const onMarks = () => props.mode === 'toc' && scheduleRender()
+const onMarks = () => props.mode === 'toc' && scheduleRender(false)
 const onSwitch = () => props.mode === 'toc' && (isEmbedPdfMode.value ? void loadPdfBookmarks() : scheduleInit())
 const onPdfPage = (event: Event) => {
   const { bookUrl, page } = (event as CustomEvent).detail || {}
@@ -417,7 +417,7 @@ const onPdfPage = (event: Event) => {
   const href = pdfHrefAt(page || 1)
   if (href === currentHref.value) return
   currentHref.value = href
-  scheduleRender()
+  scheduleRender(true)
 }
 
 onMounted(() => {

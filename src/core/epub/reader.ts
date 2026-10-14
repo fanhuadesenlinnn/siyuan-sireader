@@ -91,6 +91,15 @@ const normalizeFootnoteTypes = (doc?: Document) => {
     if (ids.has(footnoteId(anchor.getAttribute('href') || '')) && !role.split(/\s+/).includes('doc-noteref')) anchor.setAttribute('role', `${role} doc-noteref`.trim())
   })
 }
+const sameDocumentFootnote = (anchor: HTMLAnchorElement) => {
+  const target = anchor.ownerDocument.getElementById(footnoteId(anchor.getAttribute('href') || ''))
+  if (!target) return null
+  const source = anchor.closest('[id]')
+  const sourceId = source?.id
+  if (!sourceId) return null
+  const linkedBack = [...target.querySelectorAll<HTMLAnchorElement>('a[href]')].some(link => footnoteId(link.getAttribute('href') || '') === sourceId)
+  return linkedBack ? target : null
+}
 const getInlineFootnote = (target: Element | null) => {
   const element = target?.closest?.(inlineFootnoteSelector) as HTMLElement | null
   if (!element || element.closest('a[href]')) return null
@@ -227,8 +236,10 @@ function applyCustomCSS(view: FoliateView, settings: ReaderSettings) {
   const customFont = text.fontFamily === 'custom' ? text.customFont?.fontFamily : ''
   const font = customFont ? `"${customFont}", sans-serif` : text.fontFamily || 'serif'
   const overrideFont = Boolean(text.overrideFont)
-  const fontUrl = customFont ? `${location.origin}/public/siyuan-sireader/fonts/${encodeURIComponent(text.customFont.fontFile)}` : ''
-  const fontFace = customFont ? `@font-face{font-family:"${customFont}";src:url("${fontUrl}");font-display:swap}` : ''
+  const fontFile = text.customFont?.fontFile || ''
+  const localFont = fontFile.startsWith('local:')
+  const fontUrl = customFont && !localFont ? `${location.origin}/public/siyuan-sireader/fonts/${encodeURIComponent(fontFile)}` : ''
+  const fontFace = customFont && !localFont ? `@font-face{font-family:"${customFont}";src:url("${fontUrl}");font-display:swap}` : ''
   const contentBackground = getViewBackground(theme)
   const css = [
     `@namespace epub "http://www.idpf.org/2007/ops";`,
@@ -466,8 +477,8 @@ export class FoliateReader {
       if (!a || !href) return this.emit('link', e.detail)
       this.closeFloaters()
       this.footnoteAnchor = a
-      const sameDocNote = a.ownerDocument.getElementById(footnoteId(a.getAttribute('href') || ''))
-      if (sameDocNote?.hasAttribute('data-sr-footnote')) return e.preventDefault(), this.renderSameDocFootnote(a, sameDocNote)
+      const sameDocNote = sameDocumentFootnote(a)
+      if (sameDocNote) return e.preventDefault(), this.renderSameDocFootnote(a, sameDocNote)
       if (footnoteLinkClasses.some(cls => a.classList.contains(cls)) || isExplicitFootnoteReference(a)) e.detail.follow = true
       else if (shouldCheckAsFootnote(a)) e.detail.check = true
       const handled = this.footnote.handle(this.view.book, e as any)
