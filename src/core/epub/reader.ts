@@ -291,7 +291,7 @@ function applyCustomCSS(view: FoliateView, settings: ReaderSettings) {
     font[size="6"]{font-size:${text.fontSize * 2}px}
     font[size="7"]{font-size:${text.fontSize * 3}px}
     [style*="font-size: 16px"],[style*="font-size:16px"]{font-size:1rem!important}
-    body *:not(pre):not(code):not(kbd):not(.code):not(pre *):not(code *):not(kbd *):not(.code *){${overrideFont ? 'font-family:revert!important' : ''}}
+    body *:not(pre):not(code):not(kbd):not(.code):not(pre *):not(code *):not(kbd *):not(.code *){${overrideFont ? `font-family:${font}!important` : ''}}
     pre,code,kbd{font-family:monospace;font-variant-ligatures:none;white-space:pre-wrap!important}
     ${mobile ? 'body>*{max-width:100%!important}img,svg,video,table,pre,code{max-width:100%!important}' : ''}
     aside[epub|type~="footnote"],
