@@ -3,6 +3,7 @@ import { bookRecordKey, deleteBookAnnotation, readBookRecord as loadBookRecord, 
 const BOOK_INDEX_KEY = 'bookshelf.json'
 const SETTINGS_KEY = 'settings.json'
 const DAILY_READING_KEY = 'daily.json'
+const SESSION_FOCUS_KEY = 'session-focus.json'
 
 const same = (a: any, b: any) => JSON.stringify(a) === JSON.stringify(b)
 export const compareSortValues = (a: unknown, b: unknown, type: string, reverse = false) => {
@@ -75,9 +76,11 @@ export interface Annotation {
 type StoredIndex = Record<string, Book>
 type StoredSettings = Record<string, any>
 type DailyReadingStore = Record<string, Record<string, number>>
+type SessionFocusStore = Record<string, number>
 const booksKey: StorageKey<StoredIndex> = { name: BOOK_INDEX_KEY, defaultValue: () => ({}) }
 const settingsKey: StorageKey<StoredSettings> = { name: SETTINGS_KEY, defaultValue: () => ({}) }
 const dailyKey: StorageKey<DailyReadingStore> = { name: DAILY_READING_KEY, defaultValue: () => ({}) }
+const sessionFocusKey: StorageKey<SessionFocusStore> = { name: SESSION_FOCUS_KEY, defaultValue: () => ({}) }
 const operationId = (label: string) => `${label}:${globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`}`
 
 const emptyBook = (book: Partial<Book> & Pick<Book, 'url' | 'title' | 'format' | 'status'>): Book => ({
@@ -195,6 +198,10 @@ export class ReaderDatabase {
 
   async getBooks() {
     return this.listBooks('read DESC')
+  }
+
+  async getRecentBooks(limit = 5) {
+    return (await this.listBooks('read DESC')).slice(0, Math.max(0, limit))
   }
 
   async saveBook(book: Partial<Book> & Pick<Book, 'url' | 'title' | 'format' | 'status'>) {
@@ -491,6 +498,16 @@ export class ReaderDatabase {
     if (!bookUrl || duration <= 0) return
     const date = new Date().toISOString().split('T')[0]
     await storageEngine.transact(dailyKey, [{ id: operationId('daily:increment'), type: 'increment', path: [date, bookUrl], value: duration }])
+  }
+
+  async saveSessionFocus(date: string, durationMs: number) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || durationMs <= 0) return
+    await storageEngine.transact(sessionFocusKey, [{ id: operationId('session-focus:increment'), type: 'increment', path: [date], value: durationMs }])
+  }
+
+  async getSessionFocus(date: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 0
+    return Number((await storageEngine.read(sessionFocusKey))[date] || 0)
   }
 
   async deleteGroup(gid: string) {

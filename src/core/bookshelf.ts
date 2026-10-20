@@ -225,6 +225,7 @@ export class BookshelfManager {
   
   async init() { if (this.ready) return; await getDatabase(); this.ready = true; }
   async getBooks() { return this.useDb(db => db.getBooks()); }
+  async getRecentBooks(limit = 5) { return this.useDb(db => db.getRecentBooks(limit)); }
   async getBook(url: string) { return this.useDb(async db => { for (const key of bookUrlCandidates(url)) { const book = await db.getBook(key); if (book) return book } return null }); }
   async getSetting<T = any>(key: string, fallback?: T) { const value = await this.useDb(db => db.getSetting<T>(key)); return (value ?? fallback) as T; }
   async saveSetting(key: string, value: any) { await this.useDb(db => db.saveSetting(key, value)); }
@@ -235,6 +236,8 @@ export class BookshelfManager {
     await this.useDb(db => db.saveDailyReading(bookUrl, duration));
     await this.useDb(db => db.incrementBook(bookUrl, 'time', duration, { read: Date.now() }));
   }
+  async recordSessionFocus(date: string, durationMs: number) { await this.useDb(db => db.saveSessionFocus(date, durationMs)); }
+  async getSessionFocus(date: string) { return this.useDb(db => db.getSessionFocus(date)); }
   hasBook = async (url: string) => !!(await this.getBook(url))
   
   async addBook(info: any) {

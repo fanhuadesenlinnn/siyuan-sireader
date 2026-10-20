@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import type { Plugin } from 'siyuan'
 import { bookshelfManager } from '@/core/bookshelf'
+import { resolveLocalDate, splitFocusByLocalDate } from '@/integrations/lifecycle'
 
 const emptyStats = () => ({ readingTime: 0, sessionStart: 0, currentBook: '', lastSaved: 0, focused: false })
 const getEventBookUrl = (e: CustomEvent) => e.detail?.bookUrl || e.detail?.book?.url || ''
@@ -22,20 +23,31 @@ export function useStats(plugin: Plugin) {
   }
 
   const persist = async (duration: number) => {
-    stats.value.readingTime += duration
+    const readingTime = stats.value.readingTime + duration
     await Promise.all([
-      bookshelfManager.saveSetting('reader_stats', { readingTime: stats.value.readingTime }),
+      bookshelfManager.saveSetting('reader_stats', { readingTime }),
       stats.value.currentBook ? bookshelfManager.recordReading(stats.value.currentBook, duration) : Promise.resolve(),
     ])
+    stats.value.readingTime = readingTime
   }
 
+  let saving: Promise<void> | null = null
   const saveIncrement = async () => {
+    if (saving) return saving
     if (!stats.value.focused || !stats.value.lastSaved) return
     const now = Date.now()
-    const duration = Math.floor((now - stats.value.lastSaved) / 1000)
+    const start = stats.value.lastSaved
+    const elapsed = now - start
+    const duration = Math.floor(elapsed / 1000)
     if (duration < 1) return
-    await persist(duration)
-    stats.value.lastSaved = now
+    saving = (async () => {
+      await Promise.all([
+        persist(duration),
+        ...splitFocusByLocalDate(start, now).map(({ date, durationMs }) => bookshelfManager.recordSessionFocus(date, durationMs)),
+      ])
+      stats.value.lastSaved = now
+    })().finally(() => { saving = null })
+    return saving
   }
 
   const resetSession = (bookUrl = stats.value.currentBook) => Object.assign(stats.value, { currentBook: bookUrl, sessionStart: 0, lastSaved: 0, focused: false })
@@ -58,6 +70,16 @@ export function useStats(plugin: Plugin) {
     Object.assign(stats.value, emptyStats(), { readingTime: Number(data?.readingTime || 0) })
   }
 
+  const getSessionFocus = async ({ localDate }: { localDate?: string } = {}) => {
+    if (saving) await saving
+    const date = resolveLocalDate(localDate)
+    const persisted = await bookshelfManager.getSessionFocus(date)
+    const live = stats.value.focused && stats.value.lastSaved
+      ? splitFocusByLocalDate(stats.value.lastSaved, Date.now()).find(slice => slice.date === date)?.durationMs || 0
+      : 0
+    return { focusMs: persisted + live }
+  }
+
   const init = () => {
     void load()
 
@@ -78,21 +100,21 @@ export function useStats(plugin: Plugin) {
     const onReaderClose = (() => { void stopReading() }) as EventListener
 
     window.addEventListener('beforeunload', beforeUnload)
-    window.addEventListener('reader:open', onReaderOpen)
-    window.addEventListener('reader:focus', onReaderFocus)
-    window.addEventListener('reader:blur', onReaderBlur)
-    window.addEventListener('reader:close', onReaderClose)
+    window.addEventListener('sireader:reader-open', onReaderOpen)
+    window.addEventListener('sireader:reader-focus', onReaderFocus)
+    window.addEventListener('sireader:reader-blur', onReaderBlur)
+    window.addEventListener('sireader:reader-close', onReaderClose)
 
     return () => {
       clearInterval(timer)
       window.removeEventListener('beforeunload', beforeUnload)
-      window.removeEventListener('reader:open', onReaderOpen)
-      window.removeEventListener('reader:focus', onReaderFocus)
-      window.removeEventListener('reader:blur', onReaderBlur)
-      window.removeEventListener('reader:close', onReaderClose)
+      window.removeEventListener('sireader:reader-open', onReaderOpen)
+      window.removeEventListener('sireader:reader-focus', onReaderFocus)
+      window.removeEventListener('sireader:reader-blur', onReaderBlur)
+      window.removeEventListener('sireader:reader-close', onReaderClose)
       void stopReading()
     }
   }
 
-  return { stats, fmt, fmtShort, init }
+  return { stats, fmt, fmtShort, getSessionFocus, init }
 }

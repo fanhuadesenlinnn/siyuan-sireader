@@ -82,6 +82,7 @@ import { createKeyboardHandler, setupEpubKeyboard, shouldHandleReaderKeydown } f
 import { getTTSController } from '@/services/TTSPlayer'
 import { useLicense } from '@/core/license'
 import { upsertEmbedPdfAnnotation } from '@/core/storage'
+import { dispatchReaderLifecycle } from '@/integrations/lifecycle'
 const props = defineProps<{ file?: File; plugin: Plugin; settings?: ReaderSettings; url?: string; blockId?: string; bookInfo?: any; onReaderReady?: (r: FoliateReader) => void; i18n?: any }>()
 const i18n = computed(() => props.i18n || {})
 const { can, showUpgrade } = useLicense(i18n.value)
@@ -475,7 +476,7 @@ const updateBookmarkState=()=>hasBookmark.value=!!markManager.value?.hasBookmark
 const toggleBookmark=async()=>{if(isEmbedPdfMode.value)return;try{hasBookmark.value=await marks.value?.toggleBookmark?.();window.dispatchEvent(new CustomEvent('sireader:marks-updated'))}catch(e:any){showMessage(e.message||i18n.value.operationFailed||'Operation failed',2000,'error')}}
 const getBookUrl=()=>currentBookUrl.value||props.bookInfo?.url||props.url||''
 const savePosition=()=>isMobile()&&getBookUrl()&&reader&&saveMobilePosition(getBookUrl(),{cfi:reader.getLocation()?.cfi})
-const syncReaderFocus=(focused:boolean)=>{const bookUrl=getBookUrl();if(!bookUrl||readerFocused===focused)return;readerFocused=focused;window.dispatchEvent(new CustomEvent(focused?'reader:focus':'reader:blur',{detail:{bookUrl}}))}
+const syncReaderFocus=(focused:boolean)=>{const bookUrl=getBookUrl();if(!bookUrl||readerFocused===focused)return;readerFocused=focused;dispatchReaderLifecycle(focused?'focus':'blur',bookUrl)}
 const hasReaderFocus=()=>!!containerRef.value&&containerRef.value.contains(document.activeElement)
 const handleFocusIn=()=>syncReaderFocus(true)
 const handleFocusOut=()=>setTimeout(()=>syncReaderFocus(hasReaderFocus()),0)
@@ -526,13 +527,13 @@ const resize=()=>{
   else reader?.resize?.()
 }
 defineExpose({ resize })
-onMounted(()=>{init();if(!isPdfBook.value){footerTimer=window.setInterval(syncReadingProgress,60000);const getBattery=(navigator as any).getBattery;if(typeof getBattery==='function')void getBattery.call(navigator).then((value:any)=>{battery.value=value;syncReadingProgress()}).catch(()=>{})}containerRef.value?.focus();events.forEach(([e,h])=>window.addEventListener(e,h as any));window.addEventListener('keydown',handleKeydown);window.addEventListener('unhandledrejection',suppressError);window.addEventListener('blur',handleWindowBlur);window.addEventListener('focus',handleWindowFocus);document.addEventListener('visibilitychange',handleVisibilityChange);setupTabObserver();const c=containerRef.value;c&&(c.addEventListener('focusin',handleFocusIn),c.addEventListener('focusout',handleFocusOut));bindTouchPaging(c);bindTouchPaging(viewerContainerRef.value);window.dispatchEvent(new CustomEvent('reader:open',{detail:{bookUrl:getBookUrl()}}));syncReaderFocus(true)})
+onMounted(()=>{init();if(!isPdfBook.value){footerTimer=window.setInterval(syncReadingProgress,60000);const getBattery=(navigator as any).getBattery;if(typeof getBattery==='function')void getBattery.call(navigator).then((value:any)=>{battery.value=value;syncReadingProgress()}).catch(()=>{})}containerRef.value?.focus();events.forEach(([e,h])=>window.addEventListener(e,h as any));window.addEventListener('keydown',handleKeydown);window.addEventListener('unhandledrejection',suppressError);window.addEventListener('blur',handleWindowBlur);window.addEventListener('focus',handleWindowFocus);document.addEventListener('visibilitychange',handleVisibilityChange);setupTabObserver();const c=containerRef.value;c&&(c.addEventListener('focusin',handleFocusIn),c.addEventListener('focusout',handleFocusOut));bindTouchPaging(c);bindTouchPaging(viewerContainerRef.value);dispatchReaderLifecycle('open',getBookUrl());syncReaderFocus(true)})
 onBeforeUnmount(()=>{
   if(footerTimer)window.clearInterval(footerTimer)
   if (isThisActiveReader()) ttsController.destroy()
   void trackPending((async()=>{
   const view=currentView.value,c=containerRef.value
-  syncReaderFocus(false);window.dispatchEvent(new CustomEvent('reader:close'))
+  syncReaderFocus(false);dispatchReaderLifecycle('close',getBookUrl())
   const saving = Promise.resolve(savePosition())
   const closing = reader?.destroy()
   const closingTasks = Promise.allSettled([saving, closing, embedPdfReaderRef.value?.flushAnnotations?.()])

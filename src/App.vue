@@ -28,6 +28,8 @@ import { getTTSController } from '@/services/TTSPlayer'
 import { bookshelfManager } from '@/core/bookshelf'
 import { getOrAddAssetBook, openOnlineReaderTab, openOrActivateBook, openReaderTab } from '@/utils/bookOpen'
 import { normalizeSiyuanCloudUrl } from '@/core/storage'
+import { installLifecycleIntegration, resolveLocalDate } from '@/integrations/lifecycle'
+import { registerRecentBooksWidget } from '@/integrations/recentBooksWidget'
 
 const plugin = usePlugin()
 const { settings, isLoaded } = useSetting(plugin)
@@ -228,7 +230,6 @@ const registerReaderTab = (type: string, init: (tab: any) => void | Promise<void
   setPageScriptEnabled,
 }
 const sireaderApi = (window as any).sireader
-window.dispatchEvent(new CustomEvent('sireader:api-ready', { detail: sireaderApi }))
 registerCleanup(() => {
   if ((window as any).sireader === sireaderApi) delete (window as any).sireader
 })
@@ -266,6 +267,15 @@ const handleEbookLink = async (e: MouseEvent) => {
   if (e.shiftKey && !e.ctrlKey && !e.altKey && url.startsWith('assets/')) return
   
   // 处理自定义协议 sireader://
+  if (url.startsWith('sireader://resume')) {
+    e.preventDefault(), e.stopPropagation()
+    try {
+      const bookUrl = new URL(url).searchParams.get('url') || ''
+      const book = bookUrl && await bookshelfManager.getBook(bookUrl)
+      if (!book) return showMessage(plugin.i18n?.bookNotFound || 'Book not found', 3000, 'error')
+      return openOrActivateBook(plugin, book, settings.value)
+    } catch { return showMessage(plugin.i18n?.invalidBookLink || 'Invalid book link', 3000, 'error') }
+  }
   const parsed = parseBookLink(url)
   if (parsed) {
     e.preventDefault(), e.stopPropagation()
@@ -373,6 +383,14 @@ plugin.addTopBar({ icon: `<svg><use xlink:href="#${iconId}"/></svg>`, title: plu
 // 启用底部右下角的阅读统计功能
 const statsInstance = useStats(plugin)
 registerCleanup(statsInstance.init())
+registerCleanup(installLifecycleIntegration(sireaderApi, ({ localDate } = {}) => statsInstance.getSessionFocus({ localDate: resolveLocalDate(localDate) })))
+window.dispatchEvent(new CustomEvent('sireader:api-ready', { detail: sireaderApi }))
+registerCleanup(registerRecentBooksWidget({
+  app: (plugin as any).app,
+  getBooks: () => bookshelfManager.getRecentBooks(5),
+  title: plugin.i18n?.recentReading || 'Recent reading',
+  description: plugin.i18n?.continueReading || 'Continue reading a recently opened book',
+}))
 provide('stats', statsInstance)
 provide('plugin', plugin)
 
