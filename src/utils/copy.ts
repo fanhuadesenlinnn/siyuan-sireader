@@ -88,13 +88,13 @@ const writeExport = async (text: string, ctx: ExportCtx, meta: Awaited<ReturnTyp
       await (await import('@/utils/noteInsert')).insertToDoc(text, docId)
       return ctx.showMsg('已插入绑定文档')
     }
-    await (await import('@/utils/noteInsert')).insertNote(text, settings, title, ctx.bookUrl || title)
+    await (await import('@/utils/noteInsert')).insertNote(text, settings, title, ctx.bookUrl || title, ctx.i18n)
     return ctx.showMsg('已插入笔记')
   }
   await writeClipboard(text, ctx.showMsg, message)
 }
 const insertGeneratedNote = async (item: any, md: string, settings: any, meta: Awaited<ReturnType<typeof resolveExportMeta>>, ctx: any) =>
-  recordInsertedBlocks(item, await (await import('@/utils/noteInsert')).insertNote(md, { ...settings, noteInsertMode: 'appendDoc' }, meta.title, ctx.bookUrl || meta.title), ctx)
+  recordInsertedBlocks(item, await (await import('@/utils/noteInsert')).insertNote(md, { ...settings, noteInsertMode: 'appendDoc' }, meta.title, ctx.bookUrl || meta.title, ctx.i18n), ctx)
 
 const buildBookMarkdown = async (item: ExportItem, ctx: ExportCtx | any, meta?: Awaited<ReturnType<typeof resolveExportMeta>>) => {
   meta ||= await resolveExportMeta(ctx)

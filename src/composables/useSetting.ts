@@ -1,13 +1,16 @@
 ﻿// ===== 阅读器设置管理 =====
-import { defineComponent, h, ref, toRaw } from 'vue'
+import { computed, defineComponent, h, ref, toRaw, type Ref } from 'vue'
 import { showMessage, fetchSyncPost } from 'siyuan'
 import type { Plugin } from 'siyuan'
 import { readDir, searchDocs as apiSearchDocs } from '@/api'
 import { bookshelfManager } from '@/core/bookshelf'
 import { normalizeSiyuanCloudUrl, removeManagedFileTransactionally, writeManagedFile, diffLeaves } from '@/core/storage'
+import { OFFICIAL_TTS_MODELS_URL, OfflineTTSManager } from '@/services/OfflineTTS'
+import type { OfflineTTSModelManifest } from '@/services/offlineTTSModels'
 
 export type PageTurnStyle = 'push' | 'slide' | 'curl'
 export type ViewMode = 'single' | 'double' | 'scroll'
+export type PdfScrollDirection = 'vertical' | 'horizontal'
 export type NavPosition = 'left' | 'right' | 'top' | 'bottom'
 export type NavItem = { id: string; icon: string; tip: string; enabled: boolean; order: number }
 export type DocInfo = { id: string; name: string; path: string; notebook: string }
@@ -23,7 +26,76 @@ export interface VisualSettings { brightness: number; contrast: number; sepia: n
 export interface TTSVoice { name: string; displayName: string; locale: string; isLocal?: boolean }
 export interface TTSSettings { enabled: boolean; voice: string; rate: number; pitch: number; sentenceGap: number; paragraphGap: number; autoTurnPage: boolean; highlightText: boolean; favoriteVoices?: TTSVoice[] }
 export interface TranslationSettings { autoOnSelection: boolean; engine: 'google' | 'azure' | 'transmart' | 'youdao' | 'volcengine' | 'wechat' | 'mymemory' | 'ai' }
-export interface ReaderSettings { enabled: boolean; openMode: 'newTab' | 'rightTab' | 'bottomTab' | 'newWindow'; navPosition: NavPosition; pageAnimation: PageTurnStyle; viewMode: ViewMode; theme: string; customTheme: ReadTheme; backgroundImage?: string; notebookId?: string; parentDoc?: DocInfo; noteInsertTarget: NoteInsertTarget; noteInsertMode: NoteInsertMode; linkFormat: string; wereadExportTemplate?: string; annotationTagPresets: string; annotationSyncOnAdd: boolean; annotationSyncOnDelete: boolean; bookshelfCoverSize: number; bookshelfHiddenItems: string[]; openDocAssets: boolean; docAssetExcludeRegex: string; showWereadTopBar: boolean; epubOpeningSplash: boolean; toolbarOpacity: number; pdfZoomLevel?: 'automatic' | 'fit-page' | 'fit-width' | number; pdfAnnotationToolDefaults?: Record<string, Record<string, any>>; quickSendDocs?: DocInfo[]; navItems?: NavItem[]; textSettings: TextSettings; paragraphSettings: ParagraphSettings; layoutSettings: LayoutSettings; visualSettings: VisualSettings; translation: TranslationSettings; tts?: TTSSettings }
+export interface ReaderSettings { enabled: boolean; openMode: 'newTab' | 'rightTab' | 'bottomTab' | 'newWindow'; navPosition: NavPosition; pageAnimation: PageTurnStyle; viewMode: ViewMode; pdfScrollDirection?: PdfScrollDirection; theme: string; customTheme: ReadTheme; backgroundImage?: string; notebookId?: string; parentDoc?: DocInfo; noteInsertTarget: NoteInsertTarget; noteInsertMode: NoteInsertMode; linkFormat: string; wereadExportTemplate?: string; annotationTagPresets: string; annotationSyncOnAdd: boolean; annotationSyncOnDelete: boolean; bookshelfCoverSize: number; bookshelfHiddenItems: string[]; openDocAssets: boolean; docAssetExcludeRegex: string; showWereadTopBar: boolean; epubOpeningSplash: boolean; toolbarOpacity: number; pdfZoomLevel?: 'automatic' | 'fit-page' | 'fit-width' | number; pdfAnnotationToolDefaults?: Record<string, Record<string, any>>; quickSendDocs?: DocInfo[]; navItems?: NavItem[]; textSettings: TextSettings; paragraphSettings: ParagraphSettings; layoutSettings: LayoutSettings; visualSettings: VisualSettings; translation: TranslationSettings; tts?: TTSSettings }
+
+export const getPdfScrollStrategy = (direction?: PdfScrollDirection): PdfScrollDirection => direction === 'horizontal' ? 'horizontal' : 'vertical'
+
+export const useTTSSettings = (settings: Ref<ReaderSettings>, { i18n, save, can, showUpgrade, openArchiveImport, openFolderImport }: { i18n: any; save: () => Promise<unknown>; can: (feature: string) => boolean; showUpgrade: (feature: string) => void; openArchiveImport: () => void; openFolderImport: () => void }) => {
+  const offlineTTS = new OfflineTTSManager(), voices = ref<any[]>([]), loading = ref(false), progress = ref(0), models = ref<OfflineTTSModelManifest[]>([]), operation = ref(''), confirmingRemoval = ref<string|null>(null)
+  const myVoices = computed(() => [...voices.value.filter(v => v.isLocal), ...models.value.filter(m => m.installed).flatMap(m => offlineTTS.voices(m)), ...(settings.value.tts?.favoriteVoices || []).filter(v => !v.isLocal && !(v as any).isOffline)])
+  const onlineVoices = computed(() => voices.value.filter(v => !v.isLocal))
+  const loadOffline = async () => { models.value = await offlineTTS.list() }
+  const runOffline = async (task: string, action: () => Promise<unknown>, message: string) => {
+    if (operation.value) return false
+    operation.value = task; progress.value = 0
+    try { await action(); await loadOffline(); showMessage(message, 2000, 'info'); return true }
+    catch (e: any) { showMessage(e.message || '离线语音操作失败', 3000, 'error'); return false }
+    finally { operation.value = '' }
+  }
+  const importPiper = (files: FileList) => runOffline('import', () => offlineTTS.importPiper(files, v => progress.value = v), '已导入离线模型')
+  const importArchive = (file: File) => runOffline('import', () => offlineTTS.importKokoroArchive(file, v => progress.value = v), '已导入 Kokoro 离线语音模型')
+  const remove = async (model: OfflineTTSModelManifest) => {
+    if (confirmingRemoval.value !== model.id) return confirmingRemoval.value = model.id
+    const removed = await runOffline(`remove:${model.id}`, async () => {
+      if (settings.value.tts?.voice?.startsWith(`offline:${model.id}`)) {
+        const { getTTSController } = await import('@/services/TTSPlayer')
+        getTTSController().destroy(); settings.value.tts.voice = 'zh-CN-XiaoxiaoNeural'; await save()
+      }
+      await offlineTTS.remove(model.id)
+    }, '离线语音模型已删除')
+    if (removed) confirmingRemoval.value = null
+  }
+  const load = async () => {
+    if (loading.value || voices.value.length) return
+    loading.value = true
+    try {
+      await loadOffline()
+      const { loadOnlineVoices, loadLocalVoices } = await import('@/services/TTSEngine')
+      const [local, online] = await Promise.allSettled([loadLocalVoices(), loadOnlineVoices()])
+      voices.value = [...(local.status === 'fulfilled' ? local.value : []), ...(online.status === 'fulfilled' ? online.value : [])]
+      if (!voices.value.length) showMessage(i18n.loadVoicesFailed || '加载失败', 3000, 'error')
+    } catch (e: any) { showMessage(e.message || i18n.loadVoicesFailed || '加载失败', 3000, 'error') }
+    finally { loading.value = false }
+  }
+  const selectVoice = (voice: any) => {
+    if (!voice.isLocal && !voice.isOffline && !can('tts-online')) return showUpgrade('在线语音')
+    if (settings.value.tts) { settings.value.tts.voice = voice.name; void save() }
+  }
+  const toggleFavorite = (voice: any) => {
+    if (!settings.value.tts) return
+    const favorites = settings.value.tts.favoriteVoices || [], index = favorites.findIndex(v => v.name === voice.name)
+    index >= 0 ? favorites.splice(index, 1) : favorites.push({ name: voice.name, displayName: voice.displayName, locale: voice.locale, isLocal: voice.isLocal })
+    settings.value.tts.favoriteVoices = favorites
+    showMessage(index >= 0 ? (i18n.deleted || '已删除') : (i18n.ttsVoiceFavorited || '已收藏'), 1500, 'info'); void save()
+  }
+  const isFavorite = (name: string) => (settings.value.tts?.favoriteVoices || []).some(v => v.name === name)
+  const externalActions = (url: string, openTitle: string, copyTitle: string) => [
+    { title: openTitle, icon: '#iconLink', disabled: !!operation.value, onClick: () => window.open(url, '_blank', 'noopener') },
+    { title: copyTitle, icon: '#iconCopy', disabled: !!operation.value, onClick: async () => { try { await navigator.clipboard.writeText(url); showMessage(`${copyTitle.replace(/^复制/, '')}已复制`, 1800, 'info') } catch { showMessage('复制失败，请右键链接并复制地址', 2500, 'error') } } }
+  ]
+  const voiceSections = computed(() => [
+    { key: 'ttsFavorites', title: i18n.ttsFavoriteVoices || '我的语音', hint: `${i18n.ttsCurrentVoice || '当前'}: ${settings.value.tts?.voice || ''}`, rows: myVoices.value.map((v: any) => ({ key: v.name, text: v.displayName, meta: v.isOffline ? '离线包' : (v.isLocal ? (i18n.localVoice || '本地') : v.locale), active: settings.value.tts?.voice === v.name, pick: () => selectVoice(v), action: v.isLocal || v.isOffline ? undefined : () => toggleFavorite(v), actionTitle: i18n.delete || '删除' })), empty: i18n.ttsNoFavorites || '暂无，请点击下方加载' },
+    { key: 'ttsVoices', title: i18n.ttsVoiceList || '在线语音', hint: i18n.ttsOnlineHint || '点击语音名称选择，点击星号收藏', rows: onlineVoices.value.map(v => ({ key: v.name, text: v.displayName, meta: v.locale, active: settings.value.tts?.voice === v.name, pick: () => selectVoice(v), action: () => toggleFavorite(v), actionTitle: isFavorite(v.name) ? '取消收藏' : '收藏' })), empty: i18n.ttsNoVoices || '暂无语音', loadLabel: i18n.ttsLoadVoices || '加载语音' }
+  ])
+  const offlineRows = computed(() => [
+    { key: 'hint', text: '已安装的模型可在上方“我的语音”中选择；小雅旧模型会自动识别。' },
+    { key: 'import-kokoro', text: 'Kokoro · 导入模型包', meta: '选择 .tar.bz2 文件', alwaysShowActions: true, actionTitle: '导入模型包', actionIcon: '#iconFolder', actionDisabled: !!operation.value, action: openArchiveImport },
+    { key: 'import-piper', text: 'Piper · 导入解压后的模型文件夹', meta: '支持兼容 Piper VITS 的模型', alwaysShowActions: true, actionTitle: '导入文件夹', actionIcon: '#iconFolder', actionDisabled: !!operation.value, action: openFolderImport },
+    ...models.value.filter(model => model.installed).map(model => ({ key: model.id, text: model.name, meta: operation.value === `remove:${model.id}` ? '正在删除…' : '已安装', alwaysShowActions: true, actionTitle: confirmingRemoval.value === model.id ? '确认删除' : '删除模型', actionIcon: '#lucide-trash-2', actionDisabled: !!operation.value, action: () => remove(model) })),
+    { key: 'official-models', text: '官方 TTS 模型列表', actions: externalActions(OFFICIAL_TTS_MODELS_URL, '打开官网模型列表', '复制官网模型列表链接') },
+  ])
+  return { voices, loading, progress, models, operation, confirmingRemoval, voiceSections, offlineRows, load, loadOffline, selectVoice, toggleFavorite, importPiper, importArchive }
+}
 
 // ===== 预设主题 =====
 export const PRESET_THEMES: Record<string, ReadTheme> = { default: { name: 'themeDefault', color: '#202124', bg: '#ffffff' }, auto: { name: 'themeAuto', color: 'var(--b3-theme-on-background)', bg: 'var(--b3-theme-background)' }, almond: { name: 'themeAlmond', color: '#414441', bg: '#FAF9DE' }, autumn: { name: 'themeAutumn', color: '#414441', bg: '#FFF2E2' }, green: { name: 'themeGreen', color: '#414441', bg: '#E3EDCD' }, blue: { name: 'themeBlue', color: '#414441', bg: '#DCE2F1' }, night: { name: 'themeNight', color: '#fff6e6', bg: '#415062' }, dark: { name: 'themeDark', color: '#d5cecd', bg: '#414441' }, gold: { name: 'themeGold', color: '#b58931', bg: '#081010' } }
@@ -42,7 +114,8 @@ export const applyPageStyles = (iframe: HTMLIFrameElement, s: ReaderSettings) =>
 
 // ===== 默认配置 =====
 export const DEFAULT_WEREAD_EXPORT_TEMPLATE = `# {{书名}}\n\n{{封面}}\n\n- 作者：{{作者}}\n- 微信读书：{{链接}}\n- 书籍详情：{{详情链接}}\n- bookId：{{bookId}}\n- ISBN：{{ISBN}}\n- 出版社：{{出版社}}\n- 分类：{{分类}}\n- 出版时间：{{出版时间}}\n- 字数：{{字数}}\n- 阅读人数：{{阅读人数}}\n- 评分：{{评分}}\n\n{{简介}}\n\n## 目录\n\n{{目录}}\n\n## 划线与想法\n\n{{划线与想法}}\n\n## 书签\n\n{{书签}}`
-const DEFAULT_SETTINGS: ReaderSettings = { enabled: true, openMode: 'newTab', navPosition: 'top', pageAnimation: 'push', viewMode: 'single', theme: 'auto', customTheme: { name: 'custom', color: '#202124', bg: '#ffffff' }, backgroundImage: '', notebookId: '', parentDoc: undefined, noteInsertTarget: 'clipboard', noteInsertMode: 'insertBlock', linkFormat: '> [!NOTE] 📑 书名\n> [章节](链接) 文本\n> 图片\n> 笔记', wereadExportTemplate: DEFAULT_WEREAD_EXPORT_TEMPLATE, annotationTagPresets: '未分组:', annotationSyncOnAdd: false, annotationSyncOnDelete: false, bookshelfCoverSize: 120, bookshelfHiddenItems: [], openDocAssets: true, docAssetExcludeRegex: '', showWereadTopBar: true, epubOpeningSplash: false, toolbarOpacity: 70, pdfAnnotationToolDefaults: {}, quickSendDocs: [], textSettings: { fontFamily: 'serif', fontSize: 16, fontWeight: 400, letterSpacing: 0, customFont: { fontFamily: '', fontFile: '' } }, paragraphSettings: { lineHeight: 1.6, paragraphSpacing: 1, textIndent: 2 }, layoutSettings: { marginTopPx: 44, marginBottomPx: 44, marginLeftPx: 16, marginRightPx: 16, gapPercent: 5, showHeader: true, showFooter: true, showRemainingTime: false, showProgressInfo: true, progressStyle: 'fraction', referencePageCount: 0, showCurrentTime: false, showCurrentBatteryStatus: false, use24HourClock: false }, visualSettings: { brightness: 1, contrast: 1, sepia: 0, saturate: 1, invert: false }, translation: { autoOnSelection: false, engine: 'azure' }, tts: { enabled: false, voice: 'zh-CN-XiaoxiaoNeural', rate: 1.0, pitch: 1.0, sentenceGap: 0, paragraphGap: 0.3, autoTurnPage: true, highlightText: true }, }
+const DEFAULT_SETTINGS: ReaderSettings = { enabled: true, openMode: 'newTab', navPosition: 'top', pageAnimation: 'push', viewMode: 'single', theme: 'auto', customTheme: { name: 'custom', color: '#202124', bg: '#ffffff' }, backgroundImage: '', notebookId: '', parentDoc: undefined, noteInsertTarget: 'clipboard', noteInsertMode: 'insertBlock', linkFormat: '> [!NOTE] 📑 书名\n> [章节](链接) 文本\n> 图片\n> 笔记', wereadExportTemplate: DEFAULT_WEREAD_EXPORT_TEMPLATE, annotationTagPresets: '未分组:', annotationSyncOnAdd: false, annotationSyncOnDelete: false, bookshelfCoverSize: 120, bookshelfHiddenItems: [], openDocAssets: true, docAssetExcludeRegex: '', showWereadTopBar: true, epubOpeningSplash: false, toolbarOpacity: 70, pdfAnnotationToolDefaults: {}, quickSendDocs: [], textSettings: { fontFamily: 'serif', fontSize: 16, fontWeight: 400, letterSpacing: 0, customFont: { fontFamily: '', fontFile: '' } }, paragraphSettings: { lineHeight: 1.6, paragraphSpacing: 1, textIndent: 2 }, layoutSettings: { marginTopPx: 44, marginBottomPx: 44, marginLeftPx: 16, marginRightPx: 16, gapPercent: 5, showHeader: true, showFooter: true, showRemainingTime: false, showProgressInfo: true, progressStyle: 'fraction', referencePageCount: 0, showCurrentTime: false, showCurrentBatteryStatus: false, use24HourClock: false }, visualSettings: { brightness: 1, contrast: 1, sepia: 0, saturate: 1, invert: false }, translation: { autoOnSelection: false, engine: 'azure' }, tts: { enabled: false, voice: 'zh-CN-XiaoxiaoNeural', rate: 1.0, pitch: 1.0, sentenceGap: 0, paragraphGap: 0.3, autoTurnPage: false, highlightText: true }, }
+DEFAULT_SETTINGS.pdfScrollDirection = 'vertical'
 export const LINK_FORMAT_PRESETS: Record<LinkFormatPreset, string> = {
   simple: '[书名](链接) 文本',
   heading: '## 书名\n- [章节](链接) 文本\n- 位置\n- 笔记\n- 图片',
@@ -56,6 +129,7 @@ const splitTags = (value = '') => value.split(/[#;,\uFF1B\uFF0C\u3001\n]/).map(t
 // ===== UI配置常量 =====
 const r = (k: string, min: number, max: number, step: number, unit = '') => ({ key: k, type: 'range' as const, min, max, step, unit })
 const c = (key: string) => ({ key, type: 'checkbox' as const })
+export const PDF_SCROLL_DIRECTION_ITEM = { key: 'pdfScrollDirection', opts: ['vertical', 'horizontal'] }
 export const UI_CONFIG = { interfaceItems: [{ key: 'openMode', opts: ['newTab', 'rightTab', 'bottomTab', 'newWindow'] }, { key: 'openDocAssets', type: 'checkbox' as const }, { key: 'showWereadTopBar', type: 'checkbox' as const }, { key: 'epubOpeningSplash', type: 'checkbox' as const }, { key: 'navPosition', opts: ['left', 'right', 'top', 'bottom'] }, { key: 'viewMode', opts: ['single', 'double', 'scroll'] }, { key: 'pageAnimation', opts: ['push', 'slide', 'curl'] }, r('bookshelfCoverSize', 80, 160, 10, 'px'), r('toolbarOpacity', 0, 100, 5, '%')], customThemeItems: [{ key: 'color', label: 'textColor', type: 'color' }, { key: 'bg', label: 'bgColor', type: 'color' }, { key: 'bgImg', label: 'bgImage', type: 'text' }], appearanceGroups: [{ title: 'textSettings', items: [r('fontSize', 12, 32, 1, 'px'), r('fontWeight', 300, 900, 100), r('letterSpacing', 0, 0.2, 0.01, 'em')] }, { title: 'paragraphSettings', items: [r('lineHeight', 1.0, 3.0, 0.1), r('paragraphSpacing', 0, 2, 0.1, 'em'), r('textIndent', 0, 4, 0.5, 'em')] }, { title: 'layoutSettings', items: [r('marginTopPx', 0, 144, 4, 'px'), r('marginBottomPx', 0, 144, 4, 'px'), r('marginLeftPx', 0, 144, 4, 'px'), r('marginRightPx', 0, 144, 4, 'px'), r('gapPercent', 0, 30, 1, '%'), c('showHeader'), c('showFooter'), c('showRemainingTime'), c('showProgressInfo'), { key: 'progressStyle', opts: ['fraction', 'percentage', 'reference'], labels: ['progressStyleFraction', 'progressStylePercentage', 'progressStyleReference'] }, r('referencePageCount', 0, 10000, 50), c('showCurrentTime'), c('showCurrentBatteryStatus'), c('use24HourClock')] }, { title: 'visualSettings', items: [r('brightness', 0.5, 1.5, 0.05), r('contrast', 0.5, 1.5, 0.05), r('sepia', 0, 1, 0.05), r('saturate', 0, 2, 0.1), { key: 'invert', type: 'checkbox' as const }] }], ttsItems: [{ key: 'enabled', type: 'checkbox' as const }, r('rate', 0.5, 2.0, 0.1, 'x'), r('pitch', 0.5, 1.5, 0.1), r('sentenceGap', 0, 3, 0.1, 's'), r('paragraphGap', 0, 5, 0.1, 's')], ttsOptions: [{ key: 'autoTurnPage', type: 'checkbox' as const }, { key: 'highlightText', type: 'checkbox' as const }] }
 export const DEFAULT_NAV_ITEMS: NavItem[] = [
   { id: 'bookshelf', icon: 'lucide-library-big', tip: 'bookshelf', enabled: true, order: 0 },
@@ -119,7 +193,7 @@ export const SettingRows = defineComponent({
   emits: ['load'],
   setup: (props, { emit }) => {
     const stop = (e: MouseEvent, fn?: () => void) => (e.stopPropagation(), fn?.())
-    const actionButton = (a: any) => h('span', { key: a.key || a.title, class: 'b3-list-item__action b3-tooltips b3-tooltips__w', 'aria-label': a.title || '', onClick: (e: MouseEvent) => stop(e, a.onClick) }, [h('svg', [h('use', { 'xlink:href': a.icon || '#iconBookmark' })])])
+    const actionButton = (a: any) => h('span', { key: a.key || a.title, class: ['b3-list-item__action b3-tooltips b3-tooltips__w', { 'ft__secondary': a.disabled }], 'aria-label': a.title || '', 'aria-disabled': a.disabled ? 'true' : undefined, onClick: (e: MouseEvent) => stop(e, a.disabled ? undefined : a.onClick) }, [h('svg', [h('use', { 'xlink:href': a.icon || '#iconBookmark' })])])
     return () => {
       const rows = props.rows as any[]
       if (props.loading || !rows.length) return h('li', { class: 'b3-list-item b3-list-item--hide-action' }, [
@@ -140,7 +214,7 @@ export const SettingRows = defineComponent({
         row.meta ? h('span', { class: ['b3-list-item__meta', { 'b3-tooltips b3-tooltips__w': !!row.metaTitle }], 'aria-label': row.metaTitle || undefined }, row.meta) : null,
         row.checkbox !== undefined ? h('label', { class: 'fn__flex-center', onClick: (e: MouseEvent) => e.stopPropagation() }, [h('input', { type: 'checkbox', class: 'b3-switch', checked: row.checkbox, disabled: row.disabled, onChange: (e: Event) => row.onCheck?.((e.target as HTMLInputElement).checked) })]) : null,
         ...(row.actions || []).filter((a: any) => a.show !== false).map(actionButton),
-        row.action ? actionButton({ key: 'action', title: row.actionTitle, icon: row.actionIcon, onClick: row.action }) : null
+        row.action ? actionButton({ key: 'action', title: row.actionTitle, icon: row.actionIcon, disabled: row.actionDisabled, onClick: row.action }) : null
       ]))
     }
   }

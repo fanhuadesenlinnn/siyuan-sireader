@@ -9,7 +9,7 @@
           </span>
           <span class="tts-mini-info">
             <strong>{{ tts.title.value || props.i18n?.ttsReadingTitle || 'Reading aloud' }}</strong>
-            <span>{{ tts.currentText.value || (tts.paused.value ? (props.i18n?.ttsPaused || 'Paused') : (props.i18n?.ttsReading || 'Reading aloud')) }}</span>
+            <span>{{ tts.currentText.value || statusText }}</span>
           </span>
           <svg class="tts-mini-chevron" :class="{ rotated: expanded }" aria-hidden="true"><use xlink:href="#iconDown" /></svg>
         </button>
@@ -43,6 +43,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { settingsManager, type ReaderSettings } from '@/composables/useSetting'
 import { bookshelfManager } from '@/core/bookshelf'
 import { getTTSController } from '@/services/TTSPlayer'
+import { OfflineTTSManager } from '@/services/OfflineTTS'
 import type { TTSVoice } from '@/services/TTSEngine'
 
 const props = defineProps<{ i18n?: any }>()
@@ -52,15 +53,21 @@ const expanded = ref(false)
 const popupRef = ref<HTMLElement>()
 const settings = ref<ReaderSettings | null>((window as any).__sireader_settings || null)
 const coverUrl = ref('')
-const voices = ref<TTSVoice[]>([])
+const voices = ref<(Omit<TTSVoice, 'gender'> & { isOffline?: boolean; gender?: 'Male' | 'Female' })[]>([])
 const loadingVoices = ref(false)
 let saveTimer: number | undefined
 
 const ttsSettings = computed(() => settings.value?.tts || null)
+const statusText = computed(() => {
+  if (tts.paused.value) return props.i18n?.ttsPaused || 'Paused'
+  if (tts.status.value === 'loading-model') return '正在加载离线模型…'
+  if (tts.status.value === 'synthesizing') return '正在合成语音…'
+  return props.i18n?.ttsReading || 'Reading aloud'
+})
 const voiceOptions = computed(() => {
   const current = ttsSettings.value?.voice
   const favorites = settings.value?.tts?.favoriteVoices || []
-  const list = [...voices.value.filter(v => v.isLocal), ...favorites.filter(v => !voices.value.some(local => local.name === v.name))]
+  const list = [...voices.value.filter(v => v.isLocal || v.isOffline), ...favorites.filter(v => !voices.value.some(local => local.name === v.name))]
   return current && !list.some(v => v.name === current) ? [{ name: current, displayName: current, locale: '', isLocal: false }, ...list] : list
 })
 
@@ -90,7 +97,11 @@ const playOrPause = () => tts.isActive.value ? tts.togglePause() : window.dispat
 const loadVoices = async () => {
   if (loadingVoices.value || voices.value.length) return
   loadingVoices.value = true
-  try { const { loadLocalVoices, loadOnlineVoices } = await import('@/services/TTSEngine'); voices.value = [...await loadLocalVoices(), ...await loadOnlineVoices()] } finally { loadingVoices.value = false }
+  try {
+    const [{ loadLocalVoices, loadOnlineVoices }, models] = await Promise.all([import('@/services/TTSEngine'), new OfflineTTSManager().list()])
+    const offline = new OfflineTTSManager()
+    voices.value = [...models.filter(model => model.installed).flatMap(model => offline.voices(model)), ...await loadLocalVoices(), ...await loadOnlineVoices()]
+  } finally { loadingVoices.value = false }
 }
 const saveSettings = () => { if (!settings.value) return; clearTimeout(saveTimer); saveTimer = window.setTimeout(() => settings.value && settingsManager.save(settings.value).catch(() => {}), 200) }
 const update = (key: string, value: unknown) => { if (!settings.value?.tts) return; (settings.value.tts as any)[key] = value; tts.updateConfig(settings.value.tts); saveSettings() }

@@ -5,7 +5,8 @@ import { textWalker } from 'foliate-js/text-walker.js'
 import { Overlayer } from 'foliate-js/overlayer.js'
 import { EdgeTTSCore, loadLocalVoices, toArrayBuffer } from './TTSEngine'
 import { ttsNodeFilter } from './TTSExtractor'
-import { OFFLINE_TTS_VOICE, synthesizeOfflineTTS } from './OfflineTTS'
+import { initializeOfflineTTS, OfflineTTSManager, synthesizeOfflineTTS, type OfflineAudio } from './OfflineTTS'
+import { offlineVoiceModel, type OfflineTTSModelManifest } from './offlineTTSModels'
 
 declare const window: any
 const BLOCK_SELECTOR = 'article,aside,blockquote,div,dl,dt,dd,figure,footer,form,h1,h2,h3,h4,h5,h6,header,li,main,ol,p,pre,section,tr'
@@ -25,7 +26,8 @@ export class EdgeTTSPlayer {
   private currentSource: any = null
   private readonly highlightKey = 'sireader-tts-current'
   private highlightedOverlayer: any = null
-  private prefetched: Promise<{ ssml: string; audio?: Buffer } | null> | null = null
+  private prefetched: Promise<{ ssml: string; audio?: Buffer | OfflineAudio; text?: string; range?: Range } | null> | null = null
+  private offlineManifest: OfflineTTSModelManifest | null = null
   private suppressHighlight = false
   private voiceTask: Promise<void>
   private ticket = 0
@@ -51,6 +53,7 @@ export class EdgeTTSPlayer {
     this.config = { ...this.config, ...config }
     if (!this.config.highlightText) this.clearHighlight()
     if (!voiceChanged) return
+    this.offlineManifest = null
     this.edge.setVoice(config.voice)
     await this.checkLocalVoice(config.voice)
     this.prefetched = null
@@ -139,7 +142,7 @@ export class EdgeTTSPlayer {
 
   private async playSSML(ssml: string, ticket: number, audio?: Buffer) {
     if (this.stopped || this.paused || ticket !== this.ticket || !ssml) return
-    if (this.config.voice === OFFLINE_TTS_VOICE.name) return this.playOffline(ssml, ticket)
+    if (offlineVoiceModel(this.config.voice)) return this.playOffline(ssml, ticket)
     this.config.onBlock?.(this.textOf(ssml))
     const range = this.foliateTTS?.getLastRange?.()
     range && this.highlighter(range)
@@ -172,7 +175,7 @@ export class EdgeTTSPlayer {
   }
 
   private prefetchNext(ticket: number) {
-    if (this.prefetched || this.stopped || this.paused || !this.config.autoTurnPage) return
+    if (this.prefetched || this.stopped || this.paused) return
     this.prefetched = (async () => {
       this.suppressHighlight = true
       try {
@@ -201,60 +204,82 @@ export class EdgeTTSPlayer {
   }
 
   private async playOffline(ssml: string, ticket: number) {
-    // Foliate's marked SSML contains the current mark and the remaining text
-    // of the block. Online engines consume the marks, but offline synthesis
-    // would read the remainder again on every mark. Synthesize only the range
-    // that was just highlighted.
-    const text = this.foliateTTS?.getLastRange?.()?.toString?.().trim() || this.textOf(ssml)
-    return this.playOfflineText(text, ticket)
+    const voice = offlineVoiceModel(this.config.voice)
+    if (!voice) return
+    const range = this.foliateTTS?.getLastRange?.()?.cloneRange?.()
+    const text = range?.toString?.().trim() || this.textOf(ssml)
+    this.config.onStatus?.('loading-model')
+    const manifest = await this.prepareOfflineVoice(voice.modelId)
+    this.config.onStatus?.('synthesizing')
+    const audio = await synthesizeOfflineTTS(manifest, text, this.config.rate || 1, voice.sid)
+    return this.playOfflineAudio(text, range, audio, ticket)
   }
 
-  private async playOfflineText(text: string, ticket: number) {
-    const audio = await synthesizeOfflineTTS(text, this.config.rate || 1)
+  private async prepareOfflineVoice(modelId: string) {
+    if (this.offlineManifest?.id === modelId) return this.offlineManifest
+    const manager = new OfflineTTSManager()
+    const manifest = await manager.getManifest(modelId)
+    if (!manifest.installed) throw new Error(`离线模型“${manifest.name}”尚未安装`)
+    await initializeOfflineTTS(manifest)
+    this.offlineManifest = manifest
+    return manifest
+  }
+
+  private async playOfflineAudio(text: string, range: Range | undefined, audio: OfflineAudio, ticket: number) {
     if (this.stopped || this.paused || ticket !== this.ticket) return
     if (this.audioCtx.state !== 'running') await this.audioCtx.resume()
     const buffer = this.audioCtx.createBuffer(1, audio.samples.length, audio.sampleRate)
-    buffer.copyToChannel(audio.samples, 0)
+    buffer.copyToChannel(new Float32Array(audio.samples), 0)
     const source = this.audioCtx.createBufferSource()
     source.buffer = buffer
     source.connect(this.audioCtx.destination)
     return new Promise<void>((resolve) => {
       if (this.stopped || this.paused || ticket !== this.ticket) return resolve()
       this.currentSource = source
-      source.addEventListener('ended', () => (this.currentSource = null, resolve()), { once: true })
-      try { source.start(0) } catch { this.currentSource = null; resolve() }
+      this.config.onStatus?.('playing')
+      this.config.onBlock?.(text)
+      range && this.highlighter(range)
+      source.addEventListener('ended', () => (this.currentSource = null, this.config.onStatus?.('ready'), resolve()), { once: true })
+      try { source.start(0); this.prefetchOfflineNext(ticket) } catch { this.currentSource = null; resolve() }
     })
+  }
+
+  private prefetchOfflineNext(ticket: number) {
+    if (this.prefetched || this.stopped || this.paused) return
+    this.prefetched = (async () => {
+      const ssml = await this.nextSSML()
+      const voice = offlineVoiceModel(this.config.voice)
+      const range = this.foliateTTS?.getLastRange?.()?.cloneRange?.()
+      const text = range?.toString?.().trim() || this.textOf(ssml || '')
+      if (!ssml || !text || !voice || this.stopped || ticket !== this.ticket) return null
+      try {
+        const manifest = await this.prepareOfflineVoice(voice.modelId)
+        const audio = await synthesizeOfflineTTS(manifest, text, this.config.rate || 1, voice.sid)
+        if (this.stopped || ticket !== this.ticket) return null
+        return { ssml, audio, text, range }
+      } catch { return { ssml, text, range } }
+    })()
   }
 
   private async playFrom(ssml: string, ticket: number) {
     let prepared: Buffer | undefined
+    let preparedOffline: { audio?: OfflineAudio; text?: string; range?: Range } | undefined
     while (!this.stopped && !this.paused && ticket === this.ticket && ssml) {
-      const prev = this.foliateTTS?.getLastRange?.()
-      if (this.config.voice === OFFLINE_TTS_VOICE.name) {
-        // Piper inference is synchronous and single-threaded in WASM. Speak a
-        // small batch of adjacent sentences so inference happens less often
-        // and the hand-off between AudioBufferSourceNodes is inaudible.
-        let text = this.foliateTTS?.getLastRange?.()?.toString?.().trim() || this.textOf(ssml)
-        let count = 1
-        while (text.length < 240 && count < 3) {
-          const next = await this.nextSSML()
-          if (!next) break
-          const part = this.foliateTTS?.getLastRange?.()?.toString?.().trim() || this.textOf(next)
-          if (!part) break
-          text += part
-          count++
-        }
-        this.config.onBlock?.(text)
-        await this.playOfflineText(text, ticket)
+      const prev = this.foliateTTS?.getLastRange?.()?.cloneRange?.()
+      if (offlineVoiceModel(this.config.voice)) {
+        if (preparedOffline?.audio) await this.playOfflineAudio(preparedOffline.text || this.textOf(ssml), preparedOffline.range, preparedOffline.audio, ticket)
+        else await this.playOffline(ssml, ticket)
       } else await this.playSSML(ssml, ticket, prepared)
       prepared = undefined
-      if (this.stopped || this.paused || ticket !== this.ticket || !this.config.autoTurnPage) break
+      preparedOffline = undefined
+      if (this.stopped || this.paused || ticket !== this.ticket) break
       const prefetched = this.prefetched
       this.prefetched = null
       if (prefetched) {
         const next = await prefetched
         ssml = next?.ssml || ''
-        prepared = next?.audio
+        if (next && offlineVoiceModel(this.config.voice)) preparedOffline = { audio: next.audio as OfflineAudio | undefined, text: next.text, range: next.range }
+        else prepared = next?.audio as Buffer | undefined
       } else ssml = await this.nextSSML()
       if (ssml) await this.delay(this.gapOf(prev, this.foliateTTS?.getLastRange?.()))
     }
@@ -295,10 +320,11 @@ export class EdgeTTSPlayer {
     return Promise.resolve(seek).then(ssml => this.playFrom(ssml, ticket)).then(() => undefined)
   }
 
-  pause() { this.paused = true; this.isLocal ? window.speechSynthesis.pause() : this.currentSource?.context?.suspend() }
+  pause() { this.paused = true; this.config.onStatus?.('paused'); this.isLocal ? window.speechSynthesis.pause() : this.currentSource?.context?.suspend() }
   resume() {
     if (!this.paused) return
     this.paused = false
+    this.config.onStatus?.('playing')
     this.isLocal ? window.speechSynthesis.resume() : this.currentSource?.context?.resume()
     !this.currentSource && this.play(true)
   }
@@ -311,6 +337,7 @@ export class EdgeTTSPlayer {
     this.clearHighlight()
     this.prefetched = null
     this.edge.close()
+    this.config.onStatus?.('ready')
   }
 }
 
@@ -322,6 +349,7 @@ export class TTSController {
   public paused = ref(false)
   public title = ref('')
   public currentText = ref('')
+  public status = ref('ready')
 
   async speak(text: string, config: any, title = '选中文本') {
     if (!config?.enabled || !text?.trim()) return
@@ -339,7 +367,7 @@ export class TTSController {
       const doc = document.implementation.createHTMLDocument(), p = doc.createElement('p')
       p.textContent = this.loopText
       doc.body.appendChild(p)
-      this.player = new EdgeTTSPlayer(doc, { ...config, autoTurnPage: true, onBlock: (text: string) => this.currentText.value = text })
+      this.player = new EdgeTTSPlayer(doc, { ...config, autoTurnPage: true, onBlock: (text: string) => this.currentText.value = text, onStatus: (status: string) => this.status.value = status })
       await this.player.play()
       if (!this.loopText) break
     }
@@ -355,7 +383,7 @@ export class TTSController {
       const startRange = selection?.range || (renderer && doc && this.getVisibleRange(renderer, doc, location))
       this.title.value = title
       const operation = ++this.operation
-      const player = new EdgeTTSPlayer(view || doc, { ...config, onBlock: (text: string) => this.currentText.value = text }, startRange)
+      const player = new EdgeTTSPlayer(view || doc, { ...config, onBlock: (text: string) => this.currentText.value = text, onStatus: (status: string) => this.status.value = status }, startRange)
       this.player = player
       this.isActive.value = true
       await player.play()
@@ -373,7 +401,7 @@ export class TTSController {
     void player.jump(delta).then(() => { if (this.operation === operation && this.player === player) this.reset() })
   }
   togglePause() { if (this.isActive.value) this.paused.value = !this.paused.value, this.paused.value ? this.player?.pause() : this.player?.resume() }
-  stop() { this.operation++; this.loopText = null; this.player?.stop(); this.player = null; this.currentText.value = '' }
+  stop() { this.operation++; this.loopText = null; this.player?.stop(); this.player = null; this.currentText.value = ''; this.status.value = 'ready' }
   destroy() { this.stop(); this.reset() }
   sync(enabled: boolean) { !enabled && this.destroy() }
 
@@ -398,7 +426,7 @@ export class TTSController {
     } catch {}
   }
 
-  private reset() { this.isActive.value = this.paused.value = false; this.player = null; this.title.value = ''; this.currentText.value = '' }
+  private reset() { this.isActive.value = this.paused.value = false; this.player = null; this.title.value = ''; this.currentText.value = ''; this.status.value = 'ready' }
 }
 
 let globalTTSController: TTSController | null = null

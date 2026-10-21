@@ -1,5 +1,6 @@
 /* eslint-disable node/prefer-global/process */
 import { existsSync } from "node:fs"
+import { copyFile, mkdir } from "node:fs/promises"
 import { resolve } from "node:path"
 import vue from "@vitejs/plugin-vue"
 import fg from "fast-glob"
@@ -21,6 +22,29 @@ function buildKernelPlugin(outDir: string) {
     name: 'build-siyuan-kernel',
     async closeBundle() {
       await viteBuild({ configFile: false, build: { outDir, emptyOutDir: false, sourcemap: false, minify: false, lib: { entry: resolve(__dirname, 'src/kernel/index.js'), name: 'SiReaderKernel', formats: ['iife'], fileName: () => 'kernel.js' } } })
+    },
+  }
+}
+function buildOfflineTTSWorker(outDir: string, targetDir: string) {
+  return {
+    name: 'build-offline-tts-worker',
+    async buildStart() {
+      await viteBuild({
+        configFile: false,
+        resolve: { alias: { '@': resolve(__dirname, 'src') } },
+        build: {
+          outDir,
+          emptyOutDir: false,
+          sourcemap: false,
+          minify: true,
+          lib: { entry: resolve(__dirname, 'src/services/offlineTTS.worker.ts'), name: 'SiReaderOfflineTTSWorker', formats: ['iife'], fileName: () => 'offlineTTS.worker.js' },
+        },
+      })
+    },
+    async writeBundle() {
+      const workerPath = resolve(outDir, 'offlineTTS.worker.js')
+      await mkdir(targetDir, { recursive: true })
+      await copyFile(workerPath, resolve(targetDir, 'offlineTTS.worker.js'))
     },
   }
 }
@@ -74,6 +98,8 @@ export default defineConfig(({
   const privateSources = resolve(__dirname, "private-sources/src/privateSources.ts")
 
   return {
+    // Plugins are served from /plugins/<name>; worker URLs must stay relative to this plugin.
+    base: './',
     test: {
       include: ['tests/**/*.test.ts'],
       exclude: ['node_modules/**', 'dist/**', 'dev/**', 'docs/**'],
@@ -202,6 +228,7 @@ export default defineConfig(({
       rollupOptions: {
         plugins: [
           buildKernelPlugin(distDir),
+          buildOfflineTTSWorker(resolve(__dirname, 'node_modules/.cache/siyuan-sireader'), resolve(__dirname, distDir)),
           ...(isWatch
             ? [
                 ...(useLiveReload ? [livereload(devDistDir)] : []),

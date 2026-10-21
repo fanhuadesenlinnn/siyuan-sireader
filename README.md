@@ -7,7 +7,7 @@
 Transform SiYuan Notes into a professional eBook reader  
 Professional eBook reader for EPUB/PDF/MOBI/TXT/online novels. PDFs support highlights, ink, shapes, forms, stamps, signatures, images, screenshots, search, printing, export, and backlinks, with annotation notes, dictionary, translation, themes, and bookshelf management.
 
-[![Version](https://img.shields.io/badge/version-2.5.6-blue.svg)](https://github.com/your-repo/siyuan-sireader)
+[![Version](https://img.shields.io/badge/version-2.5.7-blue.svg)](https://github.com/your-repo/siyuan-sireader)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![SiYuan](https://img.shields.io/badge/SiYuan-3.0+-orange.svg)](https://github.com/siyuan-note/siyuan)
 
@@ -18,6 +18,21 @@ Professional eBook reader for EPUB/PDF/MOBI/TXT/online novels. PDFs support high
 ---
 
 ## 📝 Latest Updates
+
+## v2.5.7 (2026-10-22)
+
+### Added
+
+- Expanded offline voice-model management to import Kokoro-82M (103 Chinese and English voices), Piper VITS packs, and Xiaoya voice packs, and to browse, switch, and remove installed models.
+- Added SiReader Reading Lifecycle Integration API v1 for version and capability discovery, stable reading events, and effective reading-time queries. Events do not expose book titles or URLs; see the [bilingual API documentation](https://github.com/mm-o/siyuan-sireader/blob/main/docs/integration-api.md) ([Issue #55](https://github.com/mm-o/siyuan-sireader/issues/55)).
+- Added a XiaoLu LeiQie panel widget for recently read books and reading progress, with click-to-resume support and cleanup when the plugin is uninstalled ([Issue #57](https://github.com/mm-o/siyuan-sireader/issues/57)).
+- Added portrait and landscape scroll-direction settings for PDF reading.
+
+### Improved
+
+- Moved offline voice inference to a dedicated Worker and improved model import, management, preloading, and continuous playback.
+- Improved membership binding and entitlement checks: show service errors clearly, preserve still-valid cached entitlements during temporary network failures, and clear stale cache only after the server confirms there is no entitlement.
+- Switched cursor insertion to SiYuan's official `insertContent` API, removed the legacy editor-positioning and internal insertion logic, and added bilingual error messages.
 
 ## v2.5.6 (2026-10-14)
 

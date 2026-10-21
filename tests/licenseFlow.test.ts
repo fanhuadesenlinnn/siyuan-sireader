@@ -6,10 +6,9 @@ import { storageEngine } from '@/core/storage'
 
 test('concurrent license checks share only the in-flight request, not a lasting cache', async () => {
   vi.mocked(storageEngine.readState).mockResolvedValue({ found: true, value: { userId: 'test', type: 'annual', expiresAt: 0, lastVerifiedAt: Date.now() } })
-  vi.mocked(storageEngine.read).mockResolvedValue(new Date().toISOString().slice(0, 10))
   await Promise.all([LicenseManager.getLicense(), LicenseManager.getLicense(), LicenseManager.getLicense()])
   expect(storageEngine.readState).toHaveBeenCalledTimes(1)
-  expect(storageEngine.read).toHaveBeenCalledTimes(1)
+  expect(storageEngine.read).not.toHaveBeenCalled()
   vi.mocked(storageEngine.readState).mockResolvedValue({ found: false, value: null })
   expect(await LicenseManager.getLicense()).toBeNull()
   expect(storageEngine.readState).toHaveBeenCalledTimes(2)

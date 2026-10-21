@@ -9,7 +9,7 @@ vi.mock('@/utils/copy', () => ({ inlineLinkText: vi.fn(), sendMarkToDoc: vi.fn()
 
 import { usePlugin } from '@/main'
 import { putFile, removeFile, readDir } from '@/api'
-import { bookRecordKey, createStorageEngine, pluginStorageAdapter, readEmbedPdfAnnotations, readEmbedPdfProgress, deleteEmbedPdfAnnotation, recoverBackupRecords, storageEngine, cloneStorageValue, writeEmbedPdfProgress, createLatestSaver, normalizeBookTitle, readFileBlob, normalizeSiyuanCloudUrl } from '@/core/storage'
+import { bookRecordKey, createStorageEngine, pluginStorageAdapter, readEmbedPdfAnnotations, readEmbedPdfProgress, deleteEmbedPdfAnnotation, recoverBackupRecords, storageEngine, cloneStorageValue, writeEmbedPdfProgress, createLatestSaver, normalizeBookTitle, readFileBlob, normalizeSiyuanCloudUrl, writeManagedFiles } from '@/core/storage'
 
 test('normalizes Siyuan Cloud protocol and temporary-origin URLs to a readable stable path', () => {
   const path = '/plugin/private/siyuan-cloud/p/WPS 云文档/检查记录/奥本海默 (OCR).pdf'
@@ -34,6 +34,29 @@ test('book and group covers share the canonical SiYuan public URL', () => {
   expect(manager.getCoverUrl('data/public/siyuan-sireader/covers/group.jpg')).toMatch(/^\/public\/siyuan-sireader\/covers\/group\.jpg\?v=/)
   expect(manager.getCoverUrl({ cover: '/data/public/siyuan-sireader/covers/book.jpg' })).toMatch(/^\/public\/siyuan-sireader\/covers\/book\.jpg\?v=/)
   expect(manager.getCoverUrl('public/siyuan-sireader/covers/group.jpg?size=small')).toMatch(/^\/public\/siyuan-sireader\/covers\/group\.jpg\?size=small&v=/)
+})
+
+test('managed model files reuse directories and upload with bounded concurrency', async () => {
+  let active = 0, maxActive = 0
+  vi.mocked(putFile).mockImplementation(async (_path, isDir) => {
+    if (!isDir) {
+      active++; maxActive = Math.max(maxActive, active)
+      await new Promise(resolve => setTimeout(resolve, 10))
+      active--
+    }
+    return null
+  })
+  const progress: number[] = []
+
+  await writeManagedFiles(Array.from({ length: 5 }, (_, i) => ({
+    destination: `/public/siyuan-sireader/tts/model/espeak-ng-data/file-${i}`,
+    blob: new Blob([String(i)]),
+    name: `file-${i}`,
+  })), value => progress.push(value), 2)
+
+  expect(maxActive).toBe(2)
+  expect(vi.mocked(putFile).mock.calls.filter(([, isDir]) => isDir)).toHaveLength(1)
+  expect(progress).toEqual([20, 40, 60, 80, 100])
 })
 
 test('completion fills only missing fields and preserves user values', () => {

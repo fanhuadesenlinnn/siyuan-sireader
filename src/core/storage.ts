@@ -250,11 +250,33 @@ export const flushStorage = () => storageEngine.flush()
 
 
 const dataPath = (path: string) => path.startsWith('/public/') ? `/data${path}` : path
+export const writeManagedFiles = async (items: { blob: Blob; destination: string; name?: string }[], onProgress?: (value: number) => void, concurrency = 4) => {
+  const files = items.map(({ blob, destination, name }) => {
+    const path = dataPath(destination)
+    return { blob, path, name: name || path.split('/').pop() || 'file', type: blob.type || 'application/octet-stream' }
+  })
+  const directories = new Set<string>()
+  for (const { path } of files) directories.add(path.slice(0, path.lastIndexOf('/')) || '/data/public')
+  for (const directory of directories) {
+    try { await putFile(directory, true, new File([], '')) }
+    catch (error) { throw Object.assign(new Error(error instanceof Error ? error.message : String(error)), { path: directory, cause: error }) }
+  }
+
+  let next = 0, completed = 0, failed = false, failure: unknown
+  const workers = Array.from({ length: Math.min(Math.max(1, concurrency), files.length) }, async () => {
+    while (!failed && next < files.length) {
+      const file = files[next++]
+      try {
+        await putFile(file.path, false, new File([file.blob], file.name, { type: file.type }))
+        onProgress?.(++completed / files.length * 100)
+      } catch (error) { failed = true; failure = Object.assign(new Error(error instanceof Error ? error.message : String(error)), { path: file.path, cause: error }) }
+    }
+  })
+  await Promise.all(workers)
+  if (failed) throw failure
+}
 export const writeManagedFile = async (blob: Blob, destination: string, name?: string) => {
-  const path = dataPath(destination)
-  const directory = path.slice(0, path.lastIndexOf('/')) || '/data/public'
-  await putFile(directory, true, new File([], ''))
-  await putFile(path, false, new File([blob], name || path.split('/').pop() || 'file', { type: blob.type || 'application/octet-stream' }))
+  await writeManagedFiles([{ blob, destination, name }], undefined, 1)
   return destination
 }
 export const removeManagedFileTransactionally = (path: string) => removeFile(dataPath(path))

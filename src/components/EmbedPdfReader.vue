@@ -17,7 +17,7 @@ import { createTooltip, showTooltip } from '@/core/MarkManager'
 import { copyMark } from '@/utils/copy'
 import { buildEmbedPdfTheme, embedPdfThemePreference } from '@/utils/embedPdfTheme'
 import { addMissingPdfMenuItemsAfterFirst, capturePdfAnnotationImage, createEmbedPdfDocumentSource, ensureEmbedPdfStampManifests, ensureEmbedPdfWasmUrl, filterPdfSelectionColumns, getPdfSelectionMark, initEmbedPdfViewer, pdfAnnotationNote, pdfAnnotationText, pdfAnnotationWithReplies, pdfMarkFromAnnotation, pdfSelectionFromAnnotation, restorePdfAnnotationTool, sendPdfMarkToDoc, taskToPromise, writeBlobToClipboard } from '@/utils/embedPdfActions'
-import { settingsManager, type ReaderSettings, type ReadTheme } from '@/composables/useSetting'
+import { getPdfScrollStrategy, settingsManager, type ReaderSettings, type ReadTheme } from '@/composables/useSetting'
 import { isMobile } from '@/utils/mobile'
 import Translate from './Translate.vue'
 import { pdfQuickSendCommandId } from '@/utils/keyboard'
@@ -974,6 +974,7 @@ const config = computed(() => ({
   documentManager: {
     initialDocuments: [documentSource.value],
   },
+  scroll: { defaultStrategy: getPdfScrollStrategy(props.settings?.pdfScrollDirection) },
   fonts: { ui: null, signature: null },
   stamp: { manifests: pdfAssets.value?.stampManifests || [] },
   permissions: { enforceDocumentPermissions: true },
@@ -1031,6 +1032,7 @@ const mountPdfViewer = async () => {
 
 watch(() => [documentSource.value, pdfAssets.value, viewerHostRef.value], () => nextTick(mountPdfViewer), { flush: 'post' })
 watch(() => [props.theme, props.customTheme?.color, props.customTheme?.bg, props.settings?.backgroundImage], () => nextTick(applyPdfTheme))
+watch(() => props.settings?.pdfScrollDirection, direction => activeScrollScope?.setScrollStrategy?.(getPdfScrollStrategy(direction)))
 watch(() => props.hideAnnotations, hidden => syncPdfAnnotationsHidden(!!hidden))
 watch(() => props.settings?.quickSendDocs, () => activeRegistry && setupPdfCommands(activeRegistry), { deep: true })
 const themeObserver = new MutationObserver(() => requestAnimationFrame(applyPdfTheme))

@@ -23,6 +23,62 @@ export interface LicenseResult {
   error?: string
 }
 
+async function parseBindingSessionResponse(response: Pick<Response, 'ok' | 'status' | 'json'>) {
+  let payload: any
+  try {
+    payload = await response.json()
+  }
+  catch {
+    throw new Error('绑定状态响应格式错误')
+  }
+
+  if (!response.ok) {
+    if (response.status === 404 || response.status === 410) return null
+    throw new Error(payload?.message || `绑定状态读取失败（${response.status}）`)
+  }
+
+  const status = String(payload?.status || '').toLowerCase()
+  if (status === 'error') throw new Error(payload.message || '绑定状态读取失败')
+  if (status === 'ready' || status === 'expired') return null
+  if (status === 'bound' && !payload?.binding?.accountId) {
+    throw new Error('绑定状态响应缺少账号信息')
+  }
+  return payload
+}
+
+async function refreshCachedMembership<T>({ cached, refresh, persist, clear, isUsable }: {
+  cached: T | null
+  refresh: () => Promise<T | null>
+  persist: (value: T) => Promise<unknown>
+  clear: () => Promise<unknown>
+  isUsable: (value: T) => boolean
+}): Promise<T | null> {
+  let fresh: T | null
+  try {
+    fresh = await refresh()
+  }
+  catch {
+    return cached && isUsable(cached) ? cached : null
+  }
+
+  if (!fresh) {
+    try {
+      await clear()
+    }
+    catch {
+      // Do not revive the cached entitlement when local cleanup itself fails.
+    }
+    return null
+  }
+
+  try {
+    await persist(fresh)
+  }
+  catch {
+    // A verified server result remains authoritative even if local persistence fails.
+  }
+  return fresh
+}
 
 const PAID_FEATURES: Record<string, string> = {
   'reader-theme': 'trial',
@@ -44,17 +100,16 @@ const PAID_FEATURES: Record<string, string> = {
 }
 
 const LEVELS: Record<string, number> = { free: 0, trial: 1, monthly: 2, annual: 3, lifetime: 4 }
+const usageTasks = new Map<string, Promise<void>>()
+const usageRetryAt = new Map<string, number>()
+const usageReportedDays = new Map<string, string>()
 
 export class LicenseManager {
-  static readonly API = 'https://vip.745201.xyz'
-  static readonly USAGE_API = 'https://api.745201.xyz/simedia'
+  static readonly API = import.meta.env.VITE_MEMBERSHIP_API_BASE || 'https://vip.745201.xyz'
   static readonly KEY = 'sireader_license'
-  static readonly USAGE_DAY_KEY = 'sireader_usage_report_day'
   static readonly REFRESH_INTERVAL = 7 * 24 * 60 * 60 * 1000
   private static readonly licenseKey: StorageKey<LicenseInfo | null> = { name: LicenseManager.KEY, defaultValue: () => null }
-  private static readonly usageDayKey: StorageKey<string> = { name: LicenseManager.USAGE_DAY_KEY, defaultValue: () => '' }
   private static operationId(label: string) { return `${label}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}` }
-
   private static async requestJson(url: string, init: RequestInit = {}) {
     try {
       const result = await forwardProxy(url, init.method || 'GET', typeof init.body === 'string' ? init.body : {}, [], 15000, String((init.headers as Record<string, string> | undefined)?.['Content-Type'] || 'application/json'))
@@ -79,20 +134,26 @@ export class LicenseManager {
   }
 
   private static async readLicense(): Promise<LicenseInfo | null> {
+    let license: LicenseInfo | null = null
     try {
-      const license = await this.loadStored()
+      license = await this.loadStored()
       if (!license || !this.isUsable(license)) return null
       if (license.type !== 'free' && Date.now() - license.lastVerifiedAt < this.REFRESH_INTERVAL) {
         void this.reportUsage(license.userId)
         return license
       }
-      const fresh = await this.verifyFromServer()
-      if (!fresh) return license
-      await this.save(fresh)
-      return fresh
+      return await refreshCachedMembership({
+        cached: license,
+        refresh: () => this.verifyFromServer(),
+        persist: fresh => this.save(fresh),
+        clear: () => storageEngine.transact(this.licenseKey, [
+          { id: this.operationId('license-clear'), type: 'set', path: [], value: null },
+        ]),
+        isUsable: value => this.isUsable(value),
+      })
     }
     catch {
-      return null
+      return license && this.isUsable(license) ? license : null
     }
   }
 
@@ -118,32 +179,47 @@ export class LicenseManager {
       if (response.status === 404) return null
       throw new Error(response.data?.message || response.data?.error || `会员信息读取失败（${response.status}）`)
     }
+    if (!Array.isArray(response.data) && !Array.isArray(response.data?.memberships) && !Array.isArray(response.data?.data?.memberships)) throw new Error('会员服务响应格式错误')
     const license = this.fromMemberships(response.data, account)
-    if (license) void this.reportUsage(account.userId)
+    if (license && license.type !== 'free' && this.isUsable(license)) void this.reportUsage(account.userId)
     return license
   }
 
-  private static usageTasks = new Map<string, Promise<void>>()
-  private static reportUsage(userId: string) {
-    const existing = this.usageTasks.get(userId)
+  private static reportUsage(userId: string): Promise<void> {
+    const accountId = String(userId || '').trim()
+    if (!accountId) return Promise.resolve()
+    const day = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10)
+    const key = `sireader:${accountId}`
+    const storageKey: StorageKey<string> = {
+      name: `plugin_usage_report_day:sireader:${encodeURIComponent(accountId)}`,
+      defaultValue: () => '',
+    }
+    if (usageReportedDays.get(key) === day) return Promise.resolve()
+    const existing = usageTasks.get(key)
     if (existing) return existing
-    const task = this.sendUsage(userId).finally(() => this.usageTasks.delete(userId))
-    this.usageTasks.set(userId, task)
-    return task
-  }
-  private static async sendUsage(userId: string) {
-    const day = new Date().toISOString().slice(0, 10)
-    const reportedDay = await storageEngine.read(this.usageDayKey).catch(() => '')
-    if (reportedDay === day) return
-    try {
-      const response = await fetch(`${this.USAGE_API}/report`, {
+    const retryAt = usageRetryAt.get(key) || 0
+    if (retryAt > Date.now()) return Promise.resolve()
+    usageRetryAt.delete(key)
+
+    const task = (async () => {
+      const reportedDay = await storageEngine.read(storageKey).catch(() => '')
+      if (reportedDay === day) {
+        usageReportedDays.set(key, day)
+        return
+      }
+      const response = await this.requestJson(`${this.API}/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, product: 'sireader' }),
+        body: JSON.stringify({ userId: accountId, product: 'sireader' }),
       })
-      if (response.ok) await storageEngine.transact(this.usageDayKey, [{ id: this.operationId('usage-day'), type: 'set', path: [], value: day }])
-    }
-    catch { /* usage reporting must never block license verification */ }
+      if (!response.ok || response.data?.success !== true || response.data?.skipped === true) throw new Error('插件统计上报失败')
+      usageReportedDays.set(key, day)
+      await storageEngine.transact(storageKey, [{ id: this.operationId('usage-day'), type: 'set', path: [], value: day }]).catch(() => undefined)
+    })().catch(() => {
+      usageRetryAt.set(key, Date.now() + 60_000)
+    }).finally(() => usageTasks.delete(key))
+    usageTasks.set(key, task)
+    return task
   }
 
   static async createMiniProgramBindingQr(account?: { userId?: string; userName?: string }) {
@@ -173,14 +249,20 @@ export class LicenseManager {
 
   static async verifyBindingSession(token: string): Promise<LicenseInfo | null> {
     const response = await this.requestJson(`${this.API}/bind/${encodeURIComponent(token)}`)
-    if (!response.ok) return null
-    const data = response.data
+    const data = await parseBindingSessionResponse({
+      ok: response.ok,
+      status: response.status,
+      json: async () => response.data,
+    })
+    if (!data?.binding?.accountId) return null
     const binding = data.binding || data.data?.binding
     if (!binding?.accountId) return null
-    return this.fromMemberships(data, {
+    const license = this.fromMemberships(data, {
       userId: String(binding.accountId),
       userName: String(binding.accountName || '思源账号'),
     }) || this.normalizeLicense({ userId: String(binding.accountId), userName: String(binding.accountName || '思源账号'), type: 'free', activatedAt: 0, expiresAt: 0, features: [], licenseVersion: 1, lastVerifiedAt: Date.now() })
+    if (license.type !== 'free' && this.isUsable(license)) void this.reportUsage(license.userId)
+    return license
   }
 
   static async waitForBinding(token: string, expiresAt = '', signal?: AbortSignal): Promise<LicenseInfo | null> {
@@ -220,6 +302,16 @@ export class LicenseManager {
       userId: String(cached.userId),
       userName: String(cached.userName || cached.userNickname || cached.userId),
     }
+    try {
+      const response = await fetch('/api/system/getConf')
+      const payload = await response.json().catch(() => ({})) as any
+      const user = payload.data?.user || payload.data?.account || payload.data?.conf?.user || payload.user
+      if (response.ok && user?.userId) return {
+        userId: String(user.userId),
+        userName: String(user.userName || user.userNickname || user.name || user.userId),
+      }
+    }
+    catch { /* continue to the cloud-account fallback */ }
     try {
       const response = await fetch('/api/setting/getCloudUser', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
