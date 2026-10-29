@@ -147,7 +147,7 @@ export const useReaderMarks = (i18n?: any, context?: any) => {
   const hasLibraryScan = computed(() => hasLibraryContentFilter.value || hasActiveFilters.value)
   const filterLabel = computed(() => hasActiveFilters.value ? tx('filtering', 'Filtering') : tx('filter', 'Filter'))
   const typeMode = computed(() => { const value = TYPE_CYCLE.find(item => item.value === (markFilter.value.types.length === 1 ? markFilter.value.types[0] : null)) || TYPE_CYCLE[0]; return { ...value, label: value.value === null ? tx('allAnnotations', 'All annotations') : tx(value.value, value.label) } })
-  const toolbarMenuAction = computed(() => ({ id: 'type', icon: typeMode.value.icon, label: typeMode.value.label, tooltipDir: 'sw', active: !!typeMode.value.value }))
+  const toolbarMenuAction = computed(() => ({ id: 'type', icon: typeMode.value.icon, label: typeMode.value.label, tooltipDir: 'south', active: !!typeMode.value.value }))
   const markGroupKeys = computed(() => Array.isArray(list.value) ? list.value.filter((item: any) => item?.isGroup).map((item: any) => item.key) : [])
   const markAllExpanded = computed(() => !!markGroupKeys.value.length && !markGroupKeys.value.some(key => !!collapsed.value[key]))
   const pdfAnnotationsHidden = computed(() => !!(activeView.value as any)?.annotationsHidden)

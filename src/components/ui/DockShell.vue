@@ -4,8 +4,10 @@
       <button
         v-for="tab in props.tabs"
         :key="tab.id"
-        class="sr-nav-tab b3-tooltips"
-        :class="[{ 'sr-nav-tab--active': props.activeTab === tab.id }, `b3-tooltips__${props.tooltipDir || 'n'}`]"
+        class="sr-nav-tab ariaLabel"
+        :class="{ 'sr-nav-tab--active': props.activeTab === tab.id }"
+        :data-position="props.tooltipDir || 'north'"
+        data-tooltip-encoding="none"
         :aria-label="tab.tip"
         @click="$emit('update:activeTab', tab.id)"
       >
@@ -20,8 +22,10 @@
             v-show="action.show !== false"
             :key="action.id"
             type="button"
-            class="sr-toolbar-btn b3-tooltips"
-            :class="[{ 'is-active': action.active, 'is-warning': action.warning }, `b3-tooltips__${action.tooltipDir || props.toolbarTooltipDir || 's'}`]"
+            class="sr-toolbar-btn ariaLabel"
+            :class="{ 'is-active': action.active, 'is-warning': action.warning }"
+            :data-position="action.tooltipDir || props.toolbarTooltipDir || 'south'"
+            data-tooltip-encoding="none"
             :aria-label="action.label"
             @click.stop="$emit('toolbar-action', action.id)"
           >
@@ -42,8 +46,10 @@
           <div v-if="props.toolbarMenuAction?.show !== false && props.toolbarMenuAction" class="sr-toolbar-menu">
             <button
               type="button"
-              class="sr-toolbar-btn b3-tooltips"
-              :class="[{ 'is-active': props.toolbarMenuAction.active, 'is-warning': props.toolbarMenuAction.warning }, `b3-tooltips__${props.toolbarMenuAction.tooltipDir || props.toolbarTooltipDir || 's'}`]"
+              class="sr-toolbar-btn ariaLabel"
+              :class="{ 'is-active': props.toolbarMenuAction.active, 'is-warning': props.toolbarMenuAction.warning }"
+              :data-position="props.toolbarMenuAction.tooltipDir || props.toolbarTooltipDir || 'south'"
+              data-tooltip-encoding="none"
               :aria-label="props.toolbarMenuAction.label"
               @click.stop="$emit('toolbar-action', props.toolbarMenuAction.id)"
             >
@@ -56,8 +62,10 @@
             v-show="action.show !== false"
             :key="action.id"
             type="button"
-            class="sr-toolbar-btn b3-tooltips"
-            :class="[{ 'is-active': action.active, 'is-warning': action.warning }, `b3-tooltips__${action.tooltipDir || props.toolbarTooltipDir || 's'}`]"
+            class="sr-toolbar-btn ariaLabel"
+            :class="{ 'is-active': action.active, 'is-warning': action.warning }"
+            :data-position="action.tooltipDir || props.toolbarTooltipDir || 'south'"
+            data-tooltip-encoding="none"
             :aria-label="action.label"
             @click.stop="$emit('toolbar-action', action.id)"
           >

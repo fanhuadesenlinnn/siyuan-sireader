@@ -3,13 +3,13 @@
     <div v-if="state.showMenu || state.showPanel || state.showSendMenu" class="mark-overlay" @click="closeAll" />
 
     <div v-if="state.showMenu" class="mark-menu" :style="menuPosition" @click.stop>
-      <button v-if="!readOnly" @pointerdown.stop.prevent="startSelectionEditor" @click.stop="startSelectionEditor" class="b3-tooltips b3-tooltips__s" :aria-label="i18n?.note || '笔记'"><svg><use xlink:href="#lucide-square-pen" /></svg></button>
-      <button v-if="!readOnly" @click="() => handleCopy()" class="b3-tooltips b3-tooltips__s" :aria-label="i18n?.mark || '标注'"><svg><use xlink:href="#iconMark" /></svg></button>
-      <button v-if="!readOnly" @click="toggleSendMenu" class="b3-tooltips b3-tooltips__s" :aria-label="i18n?.sendTo || '发送到'"><svg><use xlink:href="#lucide-send" /></svg></button>
-      <button @click="handleCopyText" class="b3-tooltips b3-tooltips__s" :aria-label="i18n?.copy || '复制'"><svg><use xlink:href="#iconCopy" /></svg></button>
-      <button v-if="props.ttsConfig?.enabled" @click="handleSpeak" class="b3-tooltips b3-tooltips__s" :aria-label="i18n?.ttsPlay || '朗读'"><svg><use xlink:href="#iconPlay" /></svg></button>
-      <button @click="handleDict" class="b3-tooltips b3-tooltips__s" :aria-label="i18n?.dict || '词典'"><svg><use xlink:href="#iconLanguage" /></svg></button>
-      <button @click="handleTranslate" class="b3-tooltips b3-tooltips__s" :aria-label="i18n?.translate || '翻译'"><svg><use xlink:href="#iconTranslate" /></svg></button>
+      <button v-if="!readOnly" @pointerdown.stop.prevent="startSelectionEditor" @click.stop="startSelectionEditor" class="ariaLabel" data-position="south" data-tooltip-encoding="none" :aria-label="i18n?.note || '笔记'"><svg><use xlink:href="#lucide-square-pen" /></svg></button>
+      <button v-if="!readOnly" @click="() => handleCopy()" class="ariaLabel" data-position="south" data-tooltip-encoding="none" :aria-label="i18n?.mark || '标注'"><svg><use xlink:href="#iconMark" /></svg></button>
+      <button v-if="!readOnly" @click="toggleSendMenu" class="ariaLabel" data-position="south" data-tooltip-encoding="none" :aria-label="i18n?.sendTo || '发送到'"><svg><use xlink:href="#lucide-send" /></svg></button>
+      <button @click="handleCopyText" class="ariaLabel" data-position="south" data-tooltip-encoding="none" :aria-label="i18n?.copy || '复制'"><svg><use xlink:href="#iconCopy" /></svg></button>
+      <button v-if="props.ttsConfig?.enabled" @click="handleSpeak" class="ariaLabel" data-position="south" data-tooltip-encoding="none" :aria-label="i18n?.ttsPlay || '朗读'"><svg><use xlink:href="#iconPlay" /></svg></button>
+      <button @click="handleDict" class="ariaLabel" data-position="south" data-tooltip-encoding="none" :aria-label="i18n?.dict || '词典'"><svg><use xlink:href="#iconLanguage" /></svg></button>
+      <button @click="handleTranslate" class="ariaLabel" data-position="south" data-tooltip-encoding="none" :aria-label="i18n?.translate || '翻译'"><svg><use xlink:href="#iconTranslate" /></svg></button>
     </div>
 
     <!-- 发送到文档菜单 -->
@@ -54,10 +54,10 @@
         >
           <template v-if="!state.isEditing" #actions>
             <div class="sr-icon-actions">
-              <button @click.stop="handleCopyMark" class="b3-tooltips b3-tooltips__w" :aria-label="i18n?.copy || '复制'"><svg><use xlink:href="#iconCopy" /></svg></button>
-              <button v-if="state.currentMark?.blockId" @click.stop="handleOpenBlock" @mouseenter="handleShowFloat" @mouseleave="hideFloat" class="b3-tooltips b3-tooltips__w" aria-label="打开块"><svg><use xlink:href="#iconRef" /></svg></button>
-              <button v-else-if="!readOnly" @click.stop="handleImport" class="b3-tooltips b3-tooltips__w" :aria-label="i18n?.import || '导入'"><svg><use xlink:href="#iconDownload" /></svg></button>
-              <button v-if="!readOnly" @click.stop="handleDelete" class="b3-tooltips b3-tooltips__w" :aria-label="i18n?.delete || '删除'"><svg><use xlink:href="#iconTrashcan" /></svg></button>
+              <button @click.stop="handleCopyMark" class="ariaLabel" data-position="west" data-tooltip-encoding="none" :aria-label="i18n?.copy || '复制'"><svg><use xlink:href="#iconCopy" /></svg></button>
+              <button v-if="state.currentMark?.blockId" @click.stop="handleOpenBlock" @mouseenter="handleShowFloat" @mouseleave="hideFloat" class="ariaLabel" data-position="west" data-tooltip-encoding="none" aria-label="打开块"><svg><use xlink:href="#iconRef" /></svg></button>
+              <button v-else-if="!readOnly" @click.stop="handleImport" class="ariaLabel" data-position="west" data-tooltip-encoding="none" :aria-label="i18n?.import || '导入'"><svg><use xlink:href="#iconDownload" /></svg></button>
+              <button v-if="!readOnly" @click.stop="handleDelete" class="ariaLabel" data-position="west" data-tooltip-encoding="none" :aria-label="i18n?.delete || '删除'"><svg><use xlink:href="#iconTrashcan" /></svg></button>
             </div>
           </template>
         </MarkCard>

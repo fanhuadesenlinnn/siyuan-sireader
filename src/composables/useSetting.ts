@@ -178,7 +178,7 @@ export const SettingItem = defineComponent({
       if (item.opts) return h('select', { value: props.modelValue, class: 'b3-select sr-control', onChange: (e: Event) => emit('change', value(e)) }, item.opts.map((opt: string, i: number) => h('option', { key: opt, value: opt }, item.labels?.[i] ? (props.i18n as any)[item.labels[i]] : (props.i18n as any)[opt])))
       if (item.type === 'checkbox') return h('label', { class: 'fn__flex-center' }, [h('input', { checked: props.modelValue, type: 'checkbox', class: 'b3-switch', onChange: (e: Event) => emit('change', checked(e)) })])
       if (item.type === 'color' || item.type === 'text') return h('input', { value: props.modelValue, type: item.type, class: item.type === 'color' ? 'sr-control' : 'b3-text-field sr-control', onChange: (e: Event) => emit('change', value(e)) })
-      return h('input', { value: props.modelValue, type: 'range', class: 'b3-slider sr-control b3-tooltips b3-tooltips__n', min: item.min, max: item.max, step: item.step, 'aria-label': `${props.modelValue}${item.unit || ''}`, onInput: (e: Event) => emit('input', Number(value(e))) })
+      return h('input', { value: props.modelValue, type: 'range', class: 'b3-slider sr-control ariaLabel', min: item.min, max: item.max, step: item.step, 'data-position': 'north', 'data-tooltip-encoding': 'none', 'aria-label': `${props.modelValue}${item.unit || ''}`, onInput: (e: Event) => emit('input', Number(value(e))) })
     }
     return () => h('li', { class: 'b3-list-item b3-list-item--hide-action' }, [
       h('span', { class: 'b3-list-item__toggle fn__hidden' }),
@@ -193,14 +193,14 @@ export const SettingRows = defineComponent({
   emits: ['load'],
   setup: (props, { emit }) => {
     const stop = (e: MouseEvent, fn?: () => void) => (e.stopPropagation(), fn?.())
-    const actionButton = (a: any) => h('span', { key: a.key || a.title, class: ['b3-list-item__action b3-tooltips b3-tooltips__w', { 'ft__secondary': a.disabled }], 'aria-label': a.title || '', 'aria-disabled': a.disabled ? 'true' : undefined, onClick: (e: MouseEvent) => stop(e, a.disabled ? undefined : a.onClick) }, [h('svg', [h('use', { 'xlink:href': a.icon || '#iconBookmark' })])])
+    const actionButton = (a: any) => h('span', { key: a.key || a.title, class: ['b3-list-item__action ariaLabel', { 'ft__secondary': a.disabled }], 'data-position': 'west', 'data-tooltip-encoding': 'none', 'aria-label': a.title || '', 'aria-disabled': a.disabled ? 'true' : undefined, onClick: (e: MouseEvent) => stop(e, a.disabled ? undefined : a.onClick) }, [h('svg', [h('use', { 'xlink:href': a.icon || '#iconBookmark' })])])
     return () => {
       const rows = props.rows as any[]
       if (props.loading || !rows.length) return h('li', { class: 'b3-list-item b3-list-item--hide-action' }, [
         h('span', { class: 'b3-list-item__toggle fn__hidden' }),
         h('span', { class: ['b3-list-item__text', { ft__secondary: !props.loadLabel }] }, props.loading ? `${(props.i18n as any)?.loading || '加载中'}...` : (props.loadLabel || props.empty)),
         props.loadLabel && !props.loading ? h('span', { class: 'fn__space' }) : null,
-        props.loadLabel && !props.loading ? h('span', { class: 'b3-list-item__action b3-tooltips b3-tooltips__w', 'aria-label': props.loadLabel, onClick: (e: MouseEvent) => stop(e, () => emit('load')) }, [h('svg', [h('use', { 'xlink:href': '#iconRefresh' })])]) : null
+        props.loadLabel && !props.loading ? h('span', { class: 'b3-list-item__action ariaLabel', 'data-position': 'west', 'data-tooltip-encoding': 'none', 'aria-label': props.loadLabel, onClick: (e: MouseEvent) => stop(e, () => emit('load')) }, [h('svg', [h('use', { 'xlink:href': '#iconRefresh' })])]) : null
       ])
       if (rows[0]?.layout === 'grid') return h('li', { class: 'sr-resource-grid' }, rows.map((row: any) => h('div', { key: row.key, class: ['sr-resource-tile', { 'sr-resource-tile--active': row.active }], title: row.text, 'aria-label': row.text, onClick: (e: MouseEvent) => stop(e, row.pick) }, [
         row.graphic,
@@ -211,7 +211,7 @@ export const SettingRows = defineComponent({
         row.graphic ? h('span', { class: 'b3-list-item__graphic' }, row.graphic) : null,
         h('span', { class: ['b3-list-item__text', { ariaLabel: !!row.hint }], 'aria-label': row.hint || undefined, style: row.textStyle }, row.text),
         h('span', { class: 'fn__space' }),
-        row.meta ? h('span', { class: ['b3-list-item__meta', { 'b3-tooltips b3-tooltips__w': !!row.metaTitle }], 'aria-label': row.metaTitle || undefined }, row.meta) : null,
+        row.meta ? h('span', { class: ['b3-list-item__meta', { 'ariaLabel': !!row.metaTitle }], 'data-position': 'west', 'data-tooltip-encoding': 'none', 'aria-label': row.metaTitle || undefined }, row.meta) : null,
         row.checkbox !== undefined ? h('label', { class: 'fn__flex-center', onClick: (e: MouseEvent) => e.stopPropagation() }, [h('input', { type: 'checkbox', class: 'b3-switch', checked: row.checkbox, disabled: row.disabled, onChange: (e: Event) => row.onCheck?.((e.target as HTMLInputElement).checked) })]) : null,
         ...(row.actions || []).filter((a: any) => a.show !== false).map(actionButton),
         row.action ? actionButton({ key: 'action', title: row.actionTitle, icon: row.actionIcon, disabled: row.actionDisabled, onClick: row.action }) : null

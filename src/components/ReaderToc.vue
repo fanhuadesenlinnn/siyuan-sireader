@@ -5,7 +5,7 @@
     v-model:search-value="keyword"
     :search-placeholder="searchPlaceholder"
     :toolbar-actions="toolbarActions"
-    toolbar-tooltip-dir="sw"
+    toolbar-tooltip-dir="south"
     @toolbar-action="handleToolbarAction"
   >
     <div v-show="!showThumbnail" class="fn__flex-1 fn__flex-column file-tree sy__file bs-view bs-tree-view">
@@ -183,10 +183,10 @@ const renderTocItem = (item: TOCItem, level: number, parentKey: string, bookmark
   const isCurrent = !!item.href && item.href === currentHref.value
   const hasBookmark = bookmarks.has(tocLabel(item))
   const exportAction = item.href
-    ? `<span class="b3-list-item__action b3-tooltips b3-tooltips__nw" data-act="export" aria-label="${esc(props.i18n?.export || 'Export')}"><svg><use xlink:href="#lucide-send"></use></svg></span>`
+    ? `<span class="b3-list-item__action ariaLabel" data-position="north" data-tooltip-encoding="none" data-act="export" aria-label="${esc(props.i18n?.export || 'Export')}"><svg><use xlink:href="#lucide-send"></use></svg></span>`
     : ''
   const bookmarkAction = item.href
-    ? `<span class="b3-list-item__action b3-tooltips b3-tooltips__nw" data-act="bookmark" aria-label="${hasBookmark ? (props.i18n?.removeBookmark || 'Remove bookmark') : (props.i18n?.addBookmark || 'Add bookmark')}"><svg><use xlink:href="#iconBookmark"></use></svg></span>`
+    ? `<span class="b3-list-item__action ariaLabel" data-position="north" data-tooltip-encoding="none" data-act="bookmark" aria-label="${hasBookmark ? (props.i18n?.removeBookmark || 'Remove bookmark') : (props.i18n?.addBookmark || 'Add bookmark')}"><svg><use xlink:href="#iconBookmark"></use></svg></span>`
     : ''
   const hideActionClass = hasBookmark ? '' : ' b3-list-item--hide-action'
   const row = `<li class="b3-list-item${hideActionClass}${isCurrent ? ' b3-list-item--focus' : ''}" style="--file-toggle-width:${level * 18 + 18}px" data-key="${esc(key)}" data-href="${item.href ? encodeURIComponent(item.href) : ''}" data-label="${encodeURIComponent(tocLabel(item))}" data-has-child="${hasChild}" data-type="${level ? 'navigation-file' : 'navigation-root'}" data-toc-item>

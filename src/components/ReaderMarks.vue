@@ -6,7 +6,7 @@
     :search-placeholder="searchPlaceholder"
     :toolbar-menu-action="toolbarMenuAction"
     :toolbar-actions="toolbarActions"
-    toolbar-tooltip-dir="sw"
+    toolbar-tooltip-dir="south"
     @click="showOrganize = false"
     @toolbar-action="handleToolbarAction"
   >
@@ -61,10 +61,10 @@
           >
             <template #actions>
               <div class="sr-head-actions">
-                <button class="b3-tooltips b3-tooltips__nw" :aria-label="props.i18n?.copy || '复制'" @click.stop="copyMark(row.mark)"><svg><use xlink:href="#iconCopy" /></svg></button>
-                <button v-if="row.mark.blockId && row.mark.type !== 'bookmark'" class="b3-tooltips b3-tooltips__nw" :aria-label="props.i18n?.openBlock || 'Open block'" @click.stop="openBlock(row.mark.blockId)" @mouseenter="onBlockEnter($event, row.mark.blockId)" @mouseleave="hideFloat"><svg><use xlink:href="#iconRef" /></svg></button>
-                <button v-else-if="canImport(row.mark)" class="b3-tooltips b3-tooltips__nw" :aria-label="props.i18n?.import || '导入'" @click.stop="importMark(row.mark)"><svg><use xlink:href="#iconDownload" /></svg></button>
-                <button v-if="canDelete(row.mark)" class="b3-tooltips b3-tooltips__nw" :aria-label="props.i18n?.delete || '删除'" @click.stop="deleteMark(row.mark)"><svg><use xlink:href="#iconTrashcan" /></svg></button>
+                <button class="ariaLabel" data-position="north" data-tooltip-encoding="none" :aria-label="props.i18n?.copy || '复制'" @click.stop="copyMark(row.mark)"><svg><use xlink:href="#iconCopy" /></svg></button>
+                <button v-if="row.mark.blockId && row.mark.type !== 'bookmark'" class="ariaLabel" data-position="north" data-tooltip-encoding="none" :aria-label="props.i18n?.openBlock || 'Open block'" @click.stop="openBlock(row.mark.blockId)" @mouseenter="onBlockEnter($event, row.mark.blockId)" @mouseleave="hideFloat"><svg><use xlink:href="#iconRef" /></svg></button>
+                <button v-else-if="canImport(row.mark)" class="ariaLabel" data-position="north" data-tooltip-encoding="none" :aria-label="props.i18n?.import || '导入'" @click.stop="importMark(row.mark)"><svg><use xlink:href="#iconDownload" /></svg></button>
+                <button v-if="canDelete(row.mark)" class="ariaLabel" data-position="north" data-tooltip-encoding="none" :aria-label="props.i18n?.delete || '删除'" @click.stop="deleteMark(row.mark)"><svg><use xlink:href="#iconTrashcan" /></svg></button>
               </div>
             </template>
             <template #extra>

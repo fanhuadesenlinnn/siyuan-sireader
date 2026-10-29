@@ -12,15 +12,15 @@
       </div>
       <div class="wr-key">
         <input v-model.trim="apiKey" class="b3-text-field" type="password" autocomplete="off" placeholder="微信读书 API Key">
-        <button class="wr-icon b3-tooltips b3-tooltips__sw" aria-label="打开微信读书 Skill 页面获取 API Key" @click="openKeyHelp"><svg><use xlink:href="#iconHelp"/></svg></button>
-        <button class="wr-btn b3-tooltips b3-tooltips__sw" aria-label="测试 API Key 并保存到书源配置" :disabled="loading.test" @click="testKey"><svg><use xlink:href="#lucide-radio"/></svg>测试</button>
+        <button class="wr-icon ariaLabel" data-position="south" data-tooltip-encoding="none" aria-label="打开微信读书 Skill 页面获取 API Key" @click="openKeyHelp"><svg><use xlink:href="#iconHelp"/></svg></button>
+        <button class="wr-btn ariaLabel" data-position="south" data-tooltip-encoding="none" aria-label="测试 API Key 并保存到书源配置" :disabled="loading.test" @click="testKey"><svg><use xlink:href="#lucide-radio"/></svg>测试</button>
       </div>
     </div>
     <div class="wr-search">
       <input v-model.trim="keyword" class="b3-text-field" :placeholder="activeTab === 'shelf' ? '搜索当前书架' : '搜索微信读书书城'" @keyup.enter="handleSearch">
-      <button class="wr-btn primary b3-tooltips b3-tooltips__s" :aria-label="activeTab === 'shelf' ? '筛选当前书架' : '按关键词搜索微信读书书城'" :disabled="activeTab !== 'shelf' && loading.search" @click="handleSearch"><svg><use xlink:href="#lucide-search"/></svg>{{ activeTab === 'shelf' ? '筛选' : '搜索' }}</button>
-      <button class="wr-btn b3-tooltips b3-tooltips__s" aria-label="同步书架、笔记、统计和推荐" :disabled="loading.all" @click="refreshAll"><svg><use xlink:href="#lucide-refresh-cw"/></svg>同步</button>
-      <button v-if="activeTab === 'shelf'" class="wr-btn b3-tooltips b3-tooltips__s" aria-label="批量同步微信读书到思源文档" :disabled="loading.sync" @click="syncShelfToDocs"><svg><use xlink:href="#iconDownload"/></svg>同步到思源</button>
+      <button class="wr-btn primary ariaLabel" data-position="south" data-tooltip-encoding="none" :aria-label="activeTab === 'shelf' ? '筛选当前书架' : '按关键词搜索微信读书书城'" :disabled="activeTab !== 'shelf' && loading.search" @click="handleSearch"><svg><use xlink:href="#lucide-search"/></svg>{{ activeTab === 'shelf' ? '筛选' : '搜索' }}</button>
+      <button class="wr-btn ariaLabel" data-position="south" data-tooltip-encoding="none" aria-label="同步书架、笔记、统计和推荐" :disabled="loading.all" @click="refreshAll"><svg><use xlink:href="#lucide-refresh-cw"/></svg>同步</button>
+      <button v-if="activeTab === 'shelf'" class="wr-btn ariaLabel" data-position="south" data-tooltip-encoding="none" aria-label="批量同步微信读书到思源文档" :disabled="loading.sync" @click="syncShelfToDocs"><svg><use xlink:href="#iconDownload"/></svg>同步到思源</button>
     </div>
 
     <div class="wr-tabs">
@@ -74,7 +74,7 @@
                 <div class="wr-meta"><span v-for="tag in bookTags(book, 'search')" :key="tag">{{ tag }}</span></div>
                 <div class="wr-row-extra"><span v-for="text in bookMeta(book, 'search')" :key="text">{{ text }}</span></div>
               </div>
-              <div class="wr-row-actions" @click.stop><button v-for="action in bookActions(book)" :key="action.icon" class="wr-icon b3-tooltips b3-tooltips__w" :aria-label="action.label" :class="{ done: action.done }" @click="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div>
+              <div class="wr-row-actions" @click.stop><button v-for="action in bookActions(book)" :key="action.icon" class="wr-icon ariaLabel" data-position="west" data-tooltip-encoding="none" :aria-label="action.label" :class="{ done: action.done }" @click="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div>
             </article>
           </template>
           <div v-if="!searchResults.length && !loading.search" class="wr-empty">没有搜索结果</div>
@@ -101,7 +101,7 @@
                 <div class="wr-meta"><span v-for="tag in bookTags(book, 'shelf')" :key="tag">{{ tag }}</span></div>
                 <div class="wr-row-extra"><span v-for="text in bookMeta(book, 'shelf')" :key="text">{{ text }}</span></div>
               </div>
-              <div class="wr-row-actions" @click.stop><button v-for="action in bookActions(book)" :key="action.icon" class="wr-icon b3-tooltips b3-tooltips__w" :aria-label="action.label" :class="{ done: action.done }" @click="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div>
+              <div class="wr-row-actions" @click.stop><button v-for="action in bookActions(book)" :key="action.icon" class="wr-icon ariaLabel" data-position="west" data-tooltip-encoding="none" :aria-label="action.label" :class="{ done: action.done }" @click="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div>
             </article>
           </template>
           <div v-if="shelfAlbums.length" class="wr-group-title"><span>有声书</span><em>{{ shelfAlbums.length }}</em></div>
@@ -130,13 +130,13 @@
               <div class="wr-meta"><span v-for="tag in bookTags(item, 'notes')" :key="tag">{{ tag }}</span></div>
               <div class="wr-row-extra"><span v-for="text in bookMeta(item, 'notes')" :key="text">{{ text }}</span></div>
             </div>
-            <div class="wr-row-actions" @click.stop><button v-for="action in bookActions(item)" :key="action.icon" class="wr-icon b3-tooltips b3-tooltips__w" :aria-label="action.label" :class="{ done: action.done }" @click="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div>
+            <div class="wr-row-actions" @click.stop><button v-for="action in bookActions(item)" :key="action.icon" class="wr-icon ariaLabel" data-position="west" data-tooltip-encoding="none" :aria-label="action.label" :class="{ done: action.done }" @click="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div>
           </article>
         </section>
 
         <section v-else-if="activeTab === 'stats'" class="wr-stats">
           <div class="wr-stat-modes">
-            <button v-for="mode in statModes" :key="mode.id" class="b3-tooltips b3-tooltips__w" :aria-label="`加载${mode.label}阅读统计`" :class="{ active: statsMode === mode.id }" :disabled="loading.stats" @click="loadStats(mode.id)">{{ mode.label }}</button>
+            <button v-for="mode in statModes" :key="mode.id" class="ariaLabel" data-position="west" data-tooltip-encoding="none" :aria-label="`加载${mode.label}阅读统计`" :class="{ active: statsMode === mode.id }" :disabled="loading.stats" @click="loadStats(mode.id)">{{ mode.label }}</button>
           </div>
           <div class="wr-stat-line">
             <div><strong>{{ formatDuration(stats.totalReadTime) }}</strong><span>阅读时长</span></div>
@@ -156,7 +156,7 @@
             </div>
           </div>
           <div class="wr-days" v-if="readTimeDays.length">
-            <span v-for="day in readTimeDays" :key="day.date" class="b3-tooltips b3-tooltips__w" :aria-label="`${day.date} ${formatDuration(day.seconds)}`" :style="{ height: `${day.height}%` }"></span>
+            <span v-for="day in readTimeDays" :key="day.date" class="ariaLabel" data-position="west" data-tooltip-encoding="none" :aria-label="`${day.date} ${formatDuration(day.seconds)}`" :style="{ height: `${day.height}%` }"></span>
           </div>
           <div class="wr-mini-books">
             <article v-for="item in longestReads" :key="bookKey(item.book)" @click="selectBook(item.book)">
@@ -175,13 +175,13 @@
               <div class="wr-meta"><span v-for="tag in bookTags(book, 'recommend')" :key="tag">{{ tag }}</span></div>
               <div class="wr-row-extra"><span v-for="text in bookMeta(book, 'recommend')" :key="text">{{ text }}</span></div>
             </div>
-            <div class="wr-row-actions" @click.stop><button v-for="action in bookActions(book)" :key="action.icon" class="wr-icon b3-tooltips b3-tooltips__w" :aria-label="action.label" :class="{ done: action.done }" @click="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div>
+            <div class="wr-row-actions" @click.stop><button v-for="action in bookActions(book)" :key="action.icon" class="wr-icon ariaLabel" data-position="west" data-tooltip-encoding="none" :aria-label="action.label" :class="{ done: action.done }" @click="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div>
           </article>
           <div v-if="!recommendBooks.length && !loading.recommend" class="wr-empty">暂无推荐数据</div>
         </section>
       </main>
 
-      <div class="wr-resizer b3-tooltips b3-tooltips__n" aria-label="拖动调整两栏宽度" @mousedown.prevent="startResize"></div>
+      <div class="wr-resizer ariaLabel" data-position="north" data-tooltip-encoding="none" aria-label="拖动调整两栏宽度" @mousedown.prevent="startResize"></div>
 
       <aside class="wr-detail">
         <div v-if="!selectedBook" class="wr-empty detail">选择一本书查看目录和笔记</div>
@@ -199,7 +199,7 @@
             </div>
           </div>
           <div class="wr-actions">
-            <button v-for="action in detailActions" :key="action.text" class="wr-btn b3-tooltips b3-tooltips__w" :class="{ primary: action.primary, done: action.done }" :aria-label="action.label" @click="action.run"><svg><use :xlink:href="action.icon"/></svg>{{ action.text }}</button>
+            <button v-for="action in detailActions" :key="action.text" class="wr-btn ariaLabel" data-position="west" data-tooltip-encoding="none" :class="{ primary: action.primary, done: action.done }" :aria-label="action.label" @click="action.run"><svg><use :xlink:href="action.icon"/></svg>{{ action.text }}</button>
           </div>
           <section v-if="detail.intro" class="wr-book-section wr-intro-section">
             <div class="wr-section-title">简介</div>
@@ -222,7 +222,7 @@
             </div>
           </section>
           <div class="wr-subtabs">
-            <button v-for="tab in detailTabs" :key="tab.id" class="b3-tooltips b3-tooltips__w" :aria-label="`查看${tab.label}`" :class="{ active: detailTab === tab.id }" @click="detailTab = tab.id">{{ tab.label }}<em v-if="detailCount(tab.id)">{{ detailCount(tab.id) }}</em></button>
+            <button v-for="tab in detailTabs" :key="tab.id" class="ariaLabel" data-position="west" data-tooltip-encoding="none" :aria-label="`查看${tab.label}`" :class="{ active: detailTab === tab.id }" @click="detailTab = tab.id">{{ tab.label }}<em v-if="detailCount(tab.id)">{{ detailCount(tab.id) }}</em></button>
           </div>
           <div class="wr-detail-body">
             <template v-if="detailTab === 'chapters'">
@@ -244,7 +244,7 @@
               <div v-if="bookmarkMarks.length" class="wr-group-title"><span>我的书签</span><em>{{ bookmarkMarks.length }}</em></div>
               <div v-for="mark in bookmarkMarks" :key="mark.id" class="sr-card">
                 <MarkCard :time="formatDateTime(mark.timestamp)" :tags="mark.tags" :text="mark.text || mark.title" :chapter="mark.chapter" :note="mark.range ? `位置 ${mark.range}` : ''" kind="bookmark" mark-color="var(--b3-theme-primary)" @go="goMark(mark)">
-                  <template #actions><div class="sr-head-actions"><button v-for="action in markActions(mark, '书签')" :key="action.icon" class="b3-tooltips b3-tooltips__w" :aria-label="action.label" @click.stop="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div></template>
+                  <template #actions><div class="sr-head-actions"><button v-for="action in markActions(mark, '书签')" :key="action.icon" class="ariaLabel" data-position="west" data-tooltip-encoding="none" :aria-label="action.label" @click.stop="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div></template>
                 </MarkCard>
               </div>
               <div v-if="!bookmarkMarks.length" class="wr-empty">暂无书签</div>
@@ -253,20 +253,20 @@
               <div v-if="highlightMarks.length" class="wr-group-title"><span>我的划线</span><em>{{ highlightMarks.length }}</em></div>
               <div v-for="mark in highlightMarks" :key="mark.id" class="sr-card">
                 <MarkCard :time="formatDateTime(mark.timestamp)" :tags="mark.tags" :text="mark.text" :chapter="mark.chapter" :note="mark.note" kind="highlight" :mark-color="mark.color" @go="goMark(mark)">
-                  <template #actions><div class="sr-head-actions"><button v-for="action in markActions(mark, '标注')" :key="action.icon" class="b3-tooltips b3-tooltips__w" :aria-label="action.label" @click.stop="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div></template>
+                  <template #actions><div class="sr-head-actions"><button v-for="action in markActions(mark, '标注')" :key="action.icon" class="ariaLabel" data-position="west" data-tooltip-encoding="none" :aria-label="action.label" @click.stop="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div></template>
                   <template #meta><div class="wr-meta"><span>{{ mark.range }}</span></div></template>
                 </MarkCard>
               </div>
               <div v-if="bestBookmarkMarks.length" class="wr-group-title"><span>热门划线 TOP20</span><em>{{ bestBookmarkMarks.length }} / {{ bestBookmarksTotal }}</em></div>
               <div v-for="mark in bestBookmarkMarks" :key="mark.id" class="sr-card is-hot">
                 <MarkCard :time="formatDateTime(mark.timestamp)" :tags="mark.tags" :text="mark.text" :chapter="mark.chapter" :note="mark.note" kind="highlight" :mark-color="mark.color" @go="goMark(mark)">
-                  <template #actions><div class="sr-head-actions"><button v-for="action in markActions(mark, '标注', true)" :key="action.icon" class="b3-tooltips b3-tooltips__w" :aria-label="action.label" @click.stop="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div></template>
+                  <template #actions><div class="sr-head-actions"><button v-for="action in markActions(mark, '标注', true)" :key="action.icon" class="ariaLabel" data-position="west" data-tooltip-encoding="none" :aria-label="action.label" @click.stop="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div></template>
                 </MarkCard>
                 <div v-for="group in readReviews.filter(item => item.range === mark.range)" :key="group.range" class="wr-review-group">
                   <div class="wr-group-title"><span>{{ group.range }} 的想法</span><em>{{ group.totalCount || pageReviewMarks(group).length || 0 }}</em></div>
                   <div v-for="review in pageReviewMarks(group)" :key="review.id" class="sr-card">
                     <MarkCard :time="formatDateTime(review.timestamp)" :tags="review.tags" :text="review.text" :chapter="review.chapter" :note="review.note" kind="note" mark-color="blue" @go="goMark(review)">
-                      <template #actions><div class="sr-head-actions"><button v-for="action in markActions(review, '想法')" :key="action.icon" class="b3-tooltips b3-tooltips__w" :aria-label="action.label" @click.stop="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div></template>
+                      <template #actions><div class="sr-head-actions"><button v-for="action in markActions(review, '想法')" :key="action.icon" class="ariaLabel" data-position="west" data-tooltip-encoding="none" :aria-label="action.label" @click.stop="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div></template>
                     </MarkCard>
                   </div>
                 </div>
@@ -275,7 +275,7 @@
             <template v-else-if="detailTab === 'reviews'">
               <div v-for="mark in reviewMarks" :key="mark.id" class="sr-card">
                 <MarkCard :time="formatDateTime(mark.timestamp)" :tags="mark.tags" :text="mark.text" :chapter="mark.chapter" :note="mark.note" kind="note" mark-color="blue" @go="goMark(mark)">
-                  <template #actions><div class="sr-head-actions"><button v-for="action in markActions(mark, '想法', false, true)" :key="action.icon" class="b3-tooltips b3-tooltips__w" :aria-label="action.label" @click.stop="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div></template>
+                  <template #actions><div class="sr-head-actions"><button v-for="action in markActions(mark, '想法', false, true)" :key="action.icon" class="ariaLabel" data-position="west" data-tooltip-encoding="none" :aria-label="action.label" @click.stop="action.run"><svg><use :xlink:href="action.icon"/></svg></button></div></template>
                   <template #meta><div class="wr-meta"><span v-if="mark.authorName">{{ mark.authorName }}</span><span v-if="mark.likesCount">{{ mark.likesCount }} 赞</span><span v-if="mark.commentsCount">{{ mark.commentsCount }} 评论</span><span v-if="mark.star">{{ mark.star }} 分</span></div></template>
                 </MarkCard>
               </div>
@@ -487,8 +487,8 @@ const renderChapterNode = (node: ChapterNode) => {
     <span class="b3-list-item__text ariaLabel" aria-label="${title}" data-position="parentE" data-act="open" data-playlist-item data-toc-item>${title}</span>
     <span class="fn__space"></span>
     <span class="wr-chapter-meta">${wordCount} 字</span>
-    <span class="b3-list-item__action b3-tooltips b3-tooltips__w" aria-label="复制章节链接" data-act="copy"><svg><use xlink:href="#iconCopy"></use></svg></span>
-    <span class="b3-list-item__action b3-tooltips b3-tooltips__w" aria-label="加载本章划线热度" data-act="heat"><svg><use xlink:href="#lucide-zap"></use></svg></span>
+    <span class="b3-list-item__action ariaLabel" data-position="west" data-tooltip-encoding="none" aria-label="复制章节链接" data-act="copy"><svg><use xlink:href="#iconCopy"></use></svg></span>
+    <span class="b3-list-item__action ariaLabel" data-position="west" data-tooltip-encoding="none" aria-label="加载本章划线热度" data-act="heat"><svg><use xlink:href="#lucide-zap"></use></svg></span>
   </li>`
   const children = hasChild && isOpen ? node.children.map(renderChapterNode).join('') : ''
   return `${row}${children ? `<ul class="b3-list b3-list--background bs-tree-children">${children}</ul>` : ''}`

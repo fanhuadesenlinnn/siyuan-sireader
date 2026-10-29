@@ -2,7 +2,7 @@
   "name": "siyuan-sireader",
   "author": "mm-o",
   "url": "https://github.com/mm-o/siyuan-sireader",
-  "version": "2.5.7",
+  "version": "2.5.8",
   "minAppVersion": "3.6.5",
   "disabledInPublish": true,
   "backends": [
@@ -17,7 +17,7 @@
   "displayName": {
     "default": "SiReader",
     "en_US": "SiReader",
-    "zh_CN": "思阅"
+    "zh_CN": "思阅-思源 EPUB/PDF 阅读器"
   },
   "description": {
     "default": "专业电子书阅读器，支持 EPUB/PDF/MOBI/TXT/在线小说；PDF 支持高亮、墨迹、形状、表单、印章、签名、图片、截图、搜索、打印、导出和回链，并提供标注笔记、词典、翻译、主题与书架管理",

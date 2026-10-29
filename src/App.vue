@@ -103,7 +103,7 @@ const SettingsDock = defineComponent({
     const model = ref(props.modelValue)
     const navItems = computed(() => (model.value.navItems?.length ? model.value.navItems : DEFAULT_NAV_ITEMS).filter((item: any) => !['dictionary', 'weread'].includes(item.id)).sort((a: any, b: any) => a.order - b.order))
     const tabs = computed(() => navItems.value.filter((item: any) => item.enabled && (item.id !== 'toc' || canShowToc.value)).map((item: any) => ({ id: item.id, icon: item.icon, tip: props.i18n?.[item.tip] || item.tip })))
-    const tooltipDir = computed(() => ({ left: 'e', right: 'w', top: 's', bottom: 'n' }[model.value.navPosition] || 'n'))
+    const tooltipDir = computed(() => ({ left: 'east', right: 'west', top: 'south', bottom: 'north' }[model.value.navPosition] || 'north'))
     const handleUpdate = (value: any) => {
       model.value = value
       props['onUpdate:modelValue']?.(value)
@@ -396,7 +396,9 @@ provide('plugin', plugin)
 
 const ttsController = getTTSController()
 const ttsBar = document.createElement('div')
-ttsBar.className = 'toolbar__item b3-tooltips b3-tooltips__n'
+ttsBar.className = 'toolbar__item ariaLabel'
+ttsBar.dataset.position = 'north'
+ttsBar.dataset.tooltipEncoding = 'none'
 ttsBar.id = 'tts-btn'
 ttsBar.innerHTML = '<svg class="toolbar__icon"><use xlink:href="#lucide-volume-2"></use></svg>'
 ttsBar.setAttribute('aria-label', plugin.i18n?.ttsPlay || 'Start reading')

@@ -5,14 +5,14 @@
       <div v-if="status" class="sr-online__status">{{ status }}</div>
       <div class="sr-online__actions">
         <div v-for="item in toolbarItems" :key="item.id" class="sr-online__more">
-          <button class="sr-online__btn b3-tooltips b3-tooltips__sw" :class="{ active: toolbarActive(item) }" :aria-label="item.title" @click.stop="openToolbarMenu(item, $event)">
+          <button class="sr-online__btn ariaLabel" data-position="south" data-tooltip-encoding="none" :class="{ active: toolbarActive(item) }" :aria-label="item.title" @click.stop="openToolbarMenu(item, $event)">
             <svg v-if="item.icon"><use :xlink:href="item.icon"></use></svg><span>{{ item.text || item.title }}</span>
           </button>
         </div>
-        <button class="sr-online__btn b3-tooltips b3-tooltips__sw" :class="{ active: mode === 'web' }" aria-label="显示原网页" @click="mode = 'web'">
+        <button class="sr-online__btn ariaLabel" data-position="south" data-tooltip-encoding="none" :class="{ active: mode === 'web' }" aria-label="显示原网页" @click="mode = 'web'">
           <svg><use xlink:href="#lucide-eye"></use></svg><span>网页</span>
         </button>
-        <button class="sr-online__btn b3-tooltips b3-tooltips__sw" :class="{ active: mode === 'reader' }" aria-label="转换为阅读模式" :disabled="busy" @click="convert">
+        <button class="sr-online__btn ariaLabel" data-position="south" data-tooltip-encoding="none" :class="{ active: mode === 'reader' }" aria-label="转换为阅读模式" :disabled="busy" @click="convert">
           <svg><use xlink:href="#lucide-book-open-text"></use></svg><span>{{ actionText }}</span>
         </button>
       </div>

@@ -351,7 +351,6 @@ const setupPdfBottomButtons = (registry: PluginRegistry) => {
       button.setAttribute(`data-${key}`, 'true')
       button.type = 'button'
       button.disabled = false
-      button.classList.add('b3-tooltips', 'b3-tooltips__n')
       paint(button, label, icon)
       button.onclick = event => { event.preventDefault(); event.stopPropagation(); click(button) }
       bar.appendChild(button)

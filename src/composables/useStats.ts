@@ -84,7 +84,9 @@ export function useStats(plugin: Plugin) {
     void load()
 
     const bar = document.createElement('div')
-    bar.className = 'toolbar__item b3-tooltips b3-tooltips__n'
+    bar.className = 'toolbar__item ariaLabel'
+    bar.dataset.position = 'north'
+    bar.dataset.tooltipEncoding = 'none'
     bar.id = 'stats-btn'
     bar.innerHTML = '<svg class="toolbar__icon"><use xlink:href="#iconClock"></use></svg>'
     bar.setAttribute('aria-label', 'Reading stats')

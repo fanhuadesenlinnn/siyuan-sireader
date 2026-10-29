@@ -35,7 +35,7 @@
     <template #overlay>
       <Transition name="fade">
         <div v-if="modalMode" class="sr-manage-panel" @click.stop>
-        <header class="sr-modal__head"><span>{{ modalTitle }}</span><span class="block__icon block__icon--show b3-tooltips b3-tooltips__nw sr-icon-btn" :aria-label="tx('close', 'Close')" @click="closePopups"><svg><use xlink:href="#lucide-x" /></svg></span></header>
+        <header class="sr-modal__head"><span>{{ modalTitle }}</span><span class="block__icon block__icon--show ariaLabel sr-icon-btn" data-position="north" data-tooltip-encoding="none" :aria-label="tx('close', 'Close')" @click="closePopups"><svg><use xlink:href="#lucide-x" /></svg></span></header>
 
         <div class="sr-modal__body">
           <template v-if="modalMode === 'manage'">
@@ -100,7 +100,7 @@
                 <template v-for="g in groups" :key="g.id">
                   <div class="sr-group-item">
                     <button class="b3-button sr-grow sr-group-label" :class="g.type === 'smart' ? 'b3-button--cancel' : 'b3-button--outline'" type="button" @click="setGroup(g.id, true)"><strong>{{ g.name }}</strong><span class="sr-entry-meta">{{ groupCounts[g.id] || 0 }} 本</span></button>
-                    <span class="sr-inline" @click.stop><span v-for="a in groupRowActions(g)" :key="a.label" class="block__icon block__icon--show b3-tooltips b3-tooltips__nw sr-icon-btn sr-icon-btn--sm" :class="a.warn && 'block__icon--warning'" :aria-label="a.label" @click="a.click"><svg><use :xlink:href="a.icon" /></svg></span></span>
+                    <span class="sr-inline" @click.stop><span v-for="a in groupRowActions(g)" :key="a.label" class="block__icon block__icon--show ariaLabel sr-icon-btn sr-icon-btn--sm" data-position="north" data-tooltip-encoding="none" :class="a.warn && 'block__icon--warning'" :aria-label="a.label" @click="a.click"><svg><use :xlink:href="a.icon" /></svg></span></span>
                   </div>
                 </template>
               </div>

@@ -18,11 +18,11 @@
     <div v-if="!loading" class="reader-toolbar-group">
       <div v-if="showSearch" class="reader-panel" @click.stop>
         <input v-model="searchQuery" class="search-input" :placeholder="i18n.searchPlaceholder||'Search...'" @keydown.enter="handleSearch" @keydown.esc="showSearch=false" ref="searchInputRef">
-        <button class="toolbar-btn b3-tooltips b3-tooltips__n" @click="handleSearch" :aria-label="i18n.search || 'Search'"><svg><use xlink:href="#iconSearch"/></svg></button>
-        <button class="toolbar-btn b3-tooltips b3-tooltips__n" @click="handleSearchPrev" :disabled="!hasSearchResults" :aria-label="i18n.previousResult || 'Previous result'"><svg><use xlink:href="#iconUp"/></svg></button>
-        <button class="toolbar-btn b3-tooltips b3-tooltips__n" @click="handleSearchNext" :disabled="!hasSearchResults" :aria-label="i18n.nextResult || 'Next result'"><svg><use xlink:href="#iconDown"/></svg></button>
+        <button class="toolbar-btn ariaLabel" data-position="north" data-tooltip-encoding="none" @click="handleSearch" :aria-label="i18n.search || 'Search'"><svg><use xlink:href="#iconSearch"/></svg></button>
+        <button class="toolbar-btn ariaLabel" data-position="north" data-tooltip-encoding="none" @click="handleSearchPrev" :disabled="!hasSearchResults" :aria-label="i18n.previousResult || 'Previous result'"><svg><use xlink:href="#iconUp"/></svg></button>
+        <button class="toolbar-btn ariaLabel" data-position="north" data-tooltip-encoding="none" @click="handleSearchNext" :disabled="!hasSearchResults" :aria-label="i18n.nextResult || 'Next result'"><svg><use xlink:href="#iconDown"/></svg></button>
         <span class="search-count">{{ searchCount }}</span>
-        <button class="toolbar-btn b3-tooltips b3-tooltips__n" @click="handleSearchClear" :aria-label="i18n.clear || 'Clear'"><svg><use xlink:href="#iconClose"/></svg></button>
+        <button class="toolbar-btn ariaLabel" data-position="north" data-tooltip-encoding="none" @click="handleSearchClear" :aria-label="i18n.clear || 'Clear'"><svg><use xlink:href="#iconClose"/></svg></button>
       </div>
       <div v-if="showQuickMark" class="reader-panel" @click.stop>
         <div class="mark-colors">
@@ -36,18 +36,18 @@
         </div>
       </div>
       <div v-if="!isEmbedPdfMode" class="reader-toolbar" :class="{'is-visible':toolbarVisible}">
-        <button v-if="!isEmbedPdfMode" class="toolbar-btn b3-tooltips b3-tooltips__n" @click.stop="handlePrev" :aria-label="i18n.prevChapter||'Previous chapter'"><svg><use xlink:href="#iconLeft"/></svg></button>
+        <button v-if="!isEmbedPdfMode" class="toolbar-btn ariaLabel" data-position="north" data-tooltip-encoding="none" @click.stop="handlePrev" :aria-label="i18n.prevChapter||'Previous chapter'"><svg><use xlink:href="#iconLeft"/></svg></button>
         <input v-model="progressJump" class="reader-progress-jump" type="number" min="0" max="100" step="1" placeholder="%" :aria-label="i18n.jumpToProgress || 'Jump to reading progress'" @focus="progressJump=String(Math.round(readingProgress*100))" @keydown.enter.prevent="submitProgressJump">
-                <button v-if="!isEmbedPdfMode" class="toolbar-btn b3-tooltips b3-tooltips__n" @click.stop="handleNext" :aria-label="i18n.nextChapter||'Next chapter'"><svg><use xlink:href="#iconRight"/></svg></button>
-        <button v-if="!isEmbedPdfMode" class="toolbar-btn b3-tooltips b3-tooltips__n" @click.stop="openToc" :aria-label="i18n.toc||'Table of contents'"><svg><use xlink:href="#iconList"/></svg></button>
-        <button v-if="!isEmbedPdfMode" class="toolbar-btn b3-tooltips b3-tooltips__n" :class="{active:hasBookmark}" @click.stop="toggleBookmark" :aria-label="hasBookmark?(i18n.removeBookmark||'Remove bookmark'):(i18n.addBookmark||'Add bookmark')"><svg><use xlink:href="#iconBookmark"/></svg></button>
-        <button v-if="!isEmbedPdfMode" class="toolbar-btn b3-tooltips b3-tooltips__n" :class="{active:showSearch}" @click.stop="toggleSearch" :aria-label="i18n.search||'Search'"><svg><use xlink:href="#iconSearch"/></svg></button>
-        <button v-if="!isEmbedPdfMode" class="toolbar-btn toolbar-mark-btn b3-tooltips b3-tooltips__n" :class="{active:quickMarkMode}" @click.stop="toggleQuickMark" :aria-label="quickMarkMode ? (i18n.exitQuickMark || 'Exit quick annotation') : (i18n.quickMark || 'Quick annotation')">
+                <button v-if="!isEmbedPdfMode" class="toolbar-btn ariaLabel" data-position="north" data-tooltip-encoding="none" @click.stop="handleNext" :aria-label="i18n.nextChapter||'Next chapter'"><svg><use xlink:href="#iconRight"/></svg></button>
+        <button v-if="!isEmbedPdfMode" class="toolbar-btn ariaLabel" data-position="north" data-tooltip-encoding="none" @click.stop="openToc" :aria-label="i18n.toc||'Table of contents'"><svg><use xlink:href="#iconList"/></svg></button>
+        <button v-if="!isEmbedPdfMode" class="toolbar-btn ariaLabel" data-position="north" data-tooltip-encoding="none" :class="{active:hasBookmark}" @click.stop="toggleBookmark" :aria-label="hasBookmark?(i18n.removeBookmark||'Remove bookmark'):(i18n.addBookmark||'Add bookmark')"><svg><use xlink:href="#iconBookmark"/></svg></button>
+        <button v-if="!isEmbedPdfMode" class="toolbar-btn ariaLabel" data-position="north" data-tooltip-encoding="none" :class="{active:showSearch}" @click.stop="toggleSearch" :aria-label="i18n.search||'Search'"><svg><use xlink:href="#iconSearch"/></svg></button>
+        <button v-if="!isEmbedPdfMode" class="toolbar-btn toolbar-mark-btn ariaLabel" data-position="north" data-tooltip-encoding="none" :class="{active:quickMarkMode}" @click.stop="toggleQuickMark" :aria-label="quickMarkMode ? (i18n.exitQuickMark || 'Exit quick annotation') : (i18n.quickMark || 'Quick annotation')">
           <svg><use xlink:href="#iconMark"/></svg>
           <span class="mark-indicator" :style="{background:COLORS[quickMarkColor].bg}"></span>
         </button>
-        <button v-if="ttsEnabled&&!isEmbedPdfMode" class="toolbar-btn b3-tooltips b3-tooltips__n" :class="{active:ttsPlaying}" @click.stop="toggleTTS" :aria-label="ttsPlaying?(i18n.ttsPause||'暂停朗读'):(i18n.ttsPlay||'开始朗读')"><svg><use :xlink:href="ttsPlaying?'#iconPause':'#iconPlay'"/></svg></button>
-        <button v-if="isMobile()" class="toolbar-btn b3-tooltips b3-tooltips__n" @click.stop="handleClose" aria-label="Close"><svg><use xlink:href="#iconClose"/></svg></button>
+        <button v-if="ttsEnabled&&!isEmbedPdfMode" class="toolbar-btn ariaLabel" data-position="north" data-tooltip-encoding="none" :class="{active:ttsPlaying}" @click.stop="toggleTTS" :aria-label="ttsPlaying?(i18n.ttsPause||'暂停朗读'):(i18n.ttsPlay||'开始朗读')"><svg><use :xlink:href="ttsPlaying?'#iconPause':'#iconPlay'"/></svg></button>
+        <button v-if="isMobile()" class="toolbar-btn ariaLabel" data-position="north" data-tooltip-encoding="none" @click.stop="handleClose" aria-label="Close"><svg><use xlink:href="#iconClose"/></svg></button>
       </div>
     </div>
   </div>

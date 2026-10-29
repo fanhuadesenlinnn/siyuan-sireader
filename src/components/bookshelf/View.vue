@@ -26,7 +26,7 @@
             <svg v-else class="b3-list-item__arrow bs-tree-leaf-mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /></svg>
           </span>
           <span class="b3-list-item__text ariaLabel" data-position="parentE" :aria-label="mainText(root.item)" data-playlist-item>{{ mainText(root.item) }}</span>
-          <span v-if="compactStatusLabel(root.item)" class="bs-status-dot b3-tooltips b3-tooltips__w" :class="compactStatusClass(root.item)" :aria-label="compactStatusLabel(root.item)" data-playlist-item></span>
+          <span v-if="compactStatusLabel(root.item)" class="bs-status-dot ariaLabel" data-position="west" data-tooltip-encoding="none" :class="compactStatusClass(root.item)" :aria-label="compactStatusLabel(root.item)" data-playlist-item></span>
           <span v-if="compactMeta(root.item)" class="b3-list-item__meta" :class="{ 'bs-compact-progress': isBook(root.item) }" data-playlist-item>{{ compactMeta(root.item) }}</span>
         </li>
         <ul v-if="root.children.length" class="b3-list b3-list--background bs-tree-children">
@@ -56,7 +56,7 @@
               <svg v-else class="b3-list-item__arrow bs-tree-leaf-mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /></svg>
             </span>
             <span class="b3-list-item__text ariaLabel" data-position="parentE" :aria-label="mainText(child.item)" data-playlist-item>{{ mainText(child.item) }}</span>
-            <span v-if="compactStatusLabel(child.item)" class="bs-status-dot b3-tooltips b3-tooltips__w" :class="compactStatusClass(child.item)" :aria-label="compactStatusLabel(child.item)" data-playlist-item></span>
+            <span v-if="compactStatusLabel(child.item)" class="bs-status-dot ariaLabel" data-position="west" data-tooltip-encoding="none" :class="compactStatusClass(child.item)" :aria-label="compactStatusLabel(child.item)" data-playlist-item></span>
             <span v-if="compactMeta(child.item)" class="b3-list-item__meta" :class="{ 'bs-compact-progress': isBook(child.item) }" data-playlist-item>{{ compactMeta(child.item) }}</span>
           </li>
         </ul>

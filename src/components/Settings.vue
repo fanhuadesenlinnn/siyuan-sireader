@@ -366,7 +366,7 @@ onUnmounted(() => window.removeEventListener('sireaderSettingsUpdated', syncAnno
         <ul ref="licenseRef" class="b3-list b3-list--background" data-name="license">
           <SectionTitle :title="i18n.membership || '会员订阅'" :icon="settingSectionIcon('root', 'license')" :open="isOpen('license')" @toggle="toggleAccordion('license')">
             <span class="fn__space"></span>
-            <span class="b3-list-item__action b3-tooltips b3-tooltips__w" :aria-label="i18n.usageTitle || '使用说明'" @click.stop="openMembershipInfo"><svg><use xlink:href="#iconHelp"></use></svg></span>
+            <span class="b3-list-item__action ariaLabel" data-position="west" data-tooltip-encoding="none" :aria-label="i18n.usageTitle || '使用说明'" @click.stop="openMembershipInfo"><svg><use xlink:href="#iconHelp"></use></svg></span>
           </SectionTitle>
           <template v-if="isOpen('license')">
             <SettingRows v-if="loadingLicense" :rows="[]" :loading="true" :i18n="i18n" />
