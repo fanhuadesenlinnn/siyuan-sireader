@@ -7,7 +7,7 @@
 Transform SiYuan Notes into a professional eBook reader  
 Professional eBook reader for EPUB/PDF/MOBI/TXT/online novels. PDFs support highlights, ink, shapes, forms, stamps, signatures, images, screenshots, search, printing, export, and backlinks, with annotation notes, dictionary, translation, themes, and bookshelf management.
 
-[![Version](https://img.shields.io/badge/version-2.7.1-blue.svg)](https://github.com/mm-o/siyuan-sireader)
+[![Version](https://img.shields.io/badge/version-2.8.0-blue.svg)](https://github.com/mm-o/siyuan-sireader)
 [![License](https://img.shields.io/badge/license-MIT%20%2B%20AGPL-green.svg)](LICENSE)
 [![SiYuan](https://img.shields.io/badge/SiYuan-3.0+-orange.svg)](https://github.com/siyuan-note/siyuan)
 
@@ -18,6 +18,32 @@ Professional eBook reader for EPUB/PDF/MOBI/TXT/online novels. PDFs support high
 ---
 
 ## 📝 Latest Updates
+
+## v2.8.0 (2026-11-17)
+
+### Added
+
+- Full-screen button for EPUB and other non-PDF readers: one button to enter and leave full screen, with the icon following the state (PDF keeps its built-in full screen).
+- The translation window is wider (720px, up to 92vw), the source and translation boxes size to their content and can be dragged taller, and the engine picker plus "Add as annotation" stay pinned so the dialog itself never scrolls.
+- New "Page sharpness (scans)" setting for the PDF base image width (1280 / 1920 / 2560 / 3200, default 1920). High-resolution scans such as 291 ppi look soft at normal zoom; raising it sharpens them at the cost of per-page bitmap memory, and it applies after reopening the PDF.
+
+### Fixed
+
+- Fixed membership features needing a SiYuan restart after "Recover entitlement": the license state is now shared across the app, so it takes effect immediately.
+- Fixed bookshelf search inside a group only finding that group: any keyword now searches the whole shelf, and group names, author, status, tags, file names and paths all match (space-separated words, all must match).
+- Fixed blurry exported images for shape annotations: exports render at 4 px/pt (~288 dpi) with a 600 px floor for small marks, and polygons (type 7) are included.
+- Fixed annotation backlinks opening at the last reading position instead of the target page: the jump target now goes through a single-slot handoff consumed once the reader is ready, with "restore last position" cancelled, covering the not-open, already-open and cross-book cases (the timer-based retry polling is gone).
+- Fixed a horizontal scrollbar (the grey bar) appearing under a settings row on hover: the settings list now scrolls vertically only, and the "Note insertion" group uses the same flat row structure as the other groups.
+
+## v2.7.3 (2026-11-17)
+
+### Fixed
+
+- Cloud books from Siyuan Cloud now fall back between routes: when the `/d/` download route fails, SiReader retries through the `/p/` preview route instead of returning an error page, which previously surfaced as `File type not supported` for EPUB.
+- If upstream returns a gzip body without a `Content-Encoding` header, SiReader decompresses it from the magic bytes before parsing (`.gz` files themselves are excluded).
+- When the fetched content is not a real EPUB/PDF, the error now reports the byte size and the file header (hex when not printable), so you can tell whether the file or the transfer is at fault.
+- Fixed books that share a title but differ in format (for example the EPUB and the PDF of the same book) being treated as one tab: the "already open" check now compares the book url and uses the title for display only. Legacy tabs without a recorded url still fall back to the title so the same book never opens twice.
+- Fixed one book opening duplicate tabs: the tab lookup now scans every layout (right and bottom docks included) and compares urls through the candidate normalization, so differently encoded addresses of the same file still match.
 
 ## v2.7.2 (2026-11-17)
 
@@ -598,6 +624,9 @@ Professional eBook reader for EPUB/PDF/MOBI/TXT/online novels. PDFs support high
 
 **Q: Can't open EPUB file?**  
 A: Check if the file format is standard EPUB and not corrupted
+
+**Q: A book from Siyuan Cloud fails with `File type not supported`?**  
+A: That message comes from the EPUB parser and means the bytes are not a zip. SiReader self-heals in three steps: it prefers the `/d/` download route and falls back to the `/p/` preview route; if the response lacks `Content-Encoding` but starts with `1f 8b`, it decompresses it; and if the content still is not a valid EPUB/PDF, the error reports the byte size and file header so you can tell whether the file or the transfer is at fault. Also upgrade Siyuan Cloud to 0.8.3+, which pins `Accept-Encoding: identity` so upstream never gzips the file in the first place.
 
 **Q: Annotations not saved?**  
 A: Check if notebook or parent document is correctly configured in annotation settings
